@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Approval Inbox - Smart Purchase Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "72", Arial, sans-serif; background: #f5f5f5; color: #32363a; font-size: 14px; }
+
+  .shellbar {
+    background: #0a6ed1; color: white; height: 44px;
+    display: flex; align-items: center; padding: 0 16px; gap: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .shellbar .logo { font-weight: bold; font-size: 16px; }
+  .shellbar .app-title { font-size: 14px; opacity: 0.9; border-left: 1px solid rgba(255,255,255,0.4); padding-left: 16px; }
+  .shellbar .spacer { flex: 1; }
+  .shellbar .notif-badge {
+    background: #c0392b; color: white; border-radius: 10px;
+    padding: 1px 7px; font-size: 11px; font-weight: bold;
+  }
+  .shellbar .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #e8a000; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: bold; margin-left: 8px;
+  }
+
+  .main-layout { display: flex; height: calc(100vh - 44px); }
+
+  /* Left Sidebar */
+  .sidebar {
+    width: 340px; background: white;
+    border-right: 1px solid #e5e5e5;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 14px 16px; border-bottom: 1px solid #e5e5e5;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sidebar-header h2 { font-size: 15px; font-weight: 600; }
+  .sidebar-search {
+    padding: 8px 12px; border-bottom: 1px solid #e5e5e5;
+  }
+  .search-input {
+    width: 100%; border: 1px solid #d9d9d9; border-radius: 4px;
+    padding: 6px 10px; font-size: 13px; font-family: inherit;
+  }
+  .search-input:focus { outline: none; border-color: #0a6ed1; }
+
+  .list-tabs {
+    display: flex; border-bottom: 1px solid #e5e5e5;
+    padding: 0 12px;
+  }
+  .tab {
+    padding: 8px 12px; font-size: 12px; cursor: pointer;
+    border-bottom: 2px solid transparent; color: #6a6d70;
+    white-space: nowrap;
+  }
+  .tab.active { color: #0a6ed1; border-color: #0a6ed1; font-weight: 500; }
+
+  .request-list { overflow-y: auto; flex: 1; }
+  .request-item {
+    padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
+    cursor: pointer; transition: background 0.1s;
+    position: relative;
+  }
+  .request-item:hover { background: #f5f9ff; }
+  .request-item.selected { background: #e8f1fb; border-left: 3px solid #0a6ed1; padding-left: 13px; }
+  .request-item.urgent::after {
+    content: ''; position: absolute; top: 12px; right: 12px;
+    width: 8px; height: 8px; background: #c0392b; border-radius: 50%;
+  }
+  .req-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .req-id { font-size: 12px; color: #6a6d70; }
+  .req-amount { font-size: 13px; font-weight: 600; color: #32363a; }
+  .req-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .req-meta { font-size: 11px; color: #6a6d70; display: flex; align-items: center; gap: 8px; }
+  .ai-mini-score {
+    background: linear-gradient(135deg, #e8f1fb, #ede9ff);
+    color: #6366f1; border-radius: 10px;
+    padding: 1px 7px; font-size: 10px; font-weight: 600;
+  }
+  .risk-tag { border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 500; }
+  .risk-low { background: #ebf5e0; color: #1a7a1a; }
+  .risk-mid { background: #fff4e0; color: #c75300; }
+  .risk-high { background: #ffeaea; color: #c0392b; }
+
+  /* Main Content */
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .content-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 16px; gap: 16px;
+  }
+  .content-title h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .content-title .meta { font-size: 12px; color: #6a6d70; }
+  .action-buttons { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn { padding: 8px 20px; border-radius: 4px; font-size: 14px; cursor: pointer; border: 1px solid; font-family: inherit; }
+  .btn-approve { background: #1a7a1a; color: white; border-color: #1a7a1a; font-weight: 500; }
+  .btn-approve:hover { background: #155e15; }
+  .btn-reject { background: white; color: #c0392b; border-color: #c0392b; font-weight: 500; }
+  .btn-reject:hover { background: #ffeaea; }
+  .btn-back { background: white; color: #32363a; border-color: #d9d9d9; }
+
+  .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .card {
+    background: white; border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
+  }
+  .card-full { grid-column: 1 / -1; }
+  .card-header { padding: 12px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; justify-content: space-between; }
+  .card-header h3 { font-size: 14px; font-weight: 600; }
+  .card-body { padding: 16px; }
+
+  /* AI Summary Card */
+  .ai-summary-card { border: 1px solid #c7d9f5; }
+  .ai-summary-header {
+    padding: 12px 16px; border-bottom: 1px solid #e5e5e5;
+    background: linear-gradient(135deg, #f0f7ff, #ede9ff);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ai-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #0a6ed1, #6366f1); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; flex-shrink: 0; }
+  .ai-sum-body { padding: 14px 16px; }
+  .ai-sum-text { font-size: 13px; line-height: 1.7; color: #32363a; margin-bottom: 12px; }
+  .ai-highlights { display: flex; gap: 8px; flex-wrap: wrap; }
+  .highlight-tag {
+    border-radius: 4px; padding: 3px 10px; font-size: 12px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .hl-green { background: #ebf5e0; color: #1a7a1a; }
+  .hl-orange { background: #fff4e0; color: #c75300; }
+  .hl-red { background: #ffeaea; color: #c0392b; }
+  .hl-blue { background: #e8f1fb; color: #0a6ed1; }
+
+  /* Score Card */
+  .score-big { font-size: 48px; font-weight: 200; line-height: 1; }
+  .score-big.good { color: #1a7a1a; }
+  .score-big.medium { color: #0a6ed1; }
+  .score-big.low { color: #c75300; }
+  .score-sub { font-size: 12px; color: #6a6d70; margin-top: 4px; }
+  .score-bar { height: 6px; background: #e5e5e5; border-radius: 3px; margin: 10px 0; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #0a6ed1, #6366f1); }
+  .score-dims { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .dim-row { display: flex; align-items: center; gap: 8px; }
+  .dim-label { font-size: 11px; color: #6a6d70; width: 130px; flex-shrink: 0; }
+  .dim-bar { flex: 1; height: 4px; background: #e5e5e5; border-radius: 2px; overflow: hidden; }
+  .dim-bar-fill { height: 100%; border-radius: 2px; }
+  .dim-bar-fill.green { background: #1a7a1a; }
+  .dim-bar-fill.blue { background: #0a6ed1; }
+  .dim-bar-fill.orange { background: #e8a000; }
+  .dim-bar-fill.red { background: #c0392b; }
+  .dim-val { font-size: 11px; font-weight: 500; width: 28px; text-align: right; }
+
+  /* Risk card */
+  .risk-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f7f7f7; }
+  .risk-item:last-child { border-bottom: none; }
+  .risk-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .risk-text { flex: 1; }
+  .risk-title { font-size: 13px; font-weight: 500; }
+  .risk-desc { font-size: 11px; color: #6a6d70; margin-top: 2px; }
+  .risk-pill { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 10px; font-weight: 600; margin-top: 4px; }
+  .risk-pill.high { background: #ffeaea; color: #c0392b; }
+  .risk-pill.medium { background: #fff4e0; color: #c75300; }
+  .risk-pill.low { background: #ebf5e0; color: #1a7a1a; }
+
+  /* Details */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .detail-item .label { font-size: 11px; color: #6a6d70; margin-bottom: 2px; }
+  .detail-item .value { font-size: 13px; font-weight: 500; }
+
+  /* Approval Comment */
+  .comment-area {
+    width: 100%; border: 1px solid #d9d9d9; border-radius: 4px;
+    padding: 8px 12px; font-size: 13px; font-family: inherit;
+    min-height: 70px; resize: vertical;
+  }
+  .comment-area:focus { outline: none; border-color: #0a6ed1; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    background: #32363a; color: white; padding: 10px 24px;
+    border-radius: 4px; font-size: 13px; z-index: 9999;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="shellbar">
+  <div class="logo">SAP</div>
+  <div class="app-title">Purchase Approval Inbox</div>
+  <div class="spacer"></div>
+  <span>Pending</span>
+  <span class="notif-badge" id="pendingBadge">5</span>
+  <div class="avatar">WF</div>
+</div>
+
+<div class="main-layout">
+
+  <!-- Sidebar List -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Approval Inbox</h2>
+      <span style="font-size:12px; color:#6a6d70;" id="pendingCount">5 pending</span>
+    </div>
+    <div class="sidebar-search">
+      <input class="search-input" type="text" placeholder="&#x1F50D; Search requests...">
+    </div>
+    <div class="list-tabs">
+      <div class="tab active">Pending (5)</div>
+      <div class="tab">Reviewed (28)</div>
+      <div class="tab">All</div>
+    </div>
+    <div class="request-list" id="requestList"></div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="content" id="mainContent"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── POC Data ───────────────────────────────────────────────────────────────
+
+var REQUESTS = {
+  "PR-2026-0044": {
+    id: "PR-2026-0044",
+    title: "High-Performance Laptops for Backend Dev Team",
+    amount: "¥62,500",
+    amountRaw: 62500,
+    requester: "Li Jie",
+    dept: "IT Department",
+    date: "Apr 5, 2026",
+    scoreTotal: 88,
+    scoreLabel: "Good Quality",
+    scoreColor: "good",
+    scoreSub: "Top 15% of recent requests",
+    scoreDims: [
+      { label: "Completeness",        val: 95, color: "green" },
+      { label: "Compliance",          val: 90, color: "blue"  },
+      { label: "Price Reasonableness",val: 85, color: "blue"  },
+      { label: "Justification Quality",val:78, color: "orange"}
+    ],
+    riskOverall: "Low",
+    riskClass: "risk-low",
+    riskItems: [
+      { icon:"✅", title:"Budget Availability",     desc:"¥88,000 remaining in Q2 IT budget",          level:"low",    pill:"Low Risk"   },
+      { icon:"✅", title:"Vendor Compliance",       desc:"Dell & Lenovo on approved vendor list",       level:"low",    pill:"Low Risk"   },
+      { icon:"⚠️", title:"Budget Consumption Rate", desc:"78% of Q2 IT budget already committed",       level:"medium", pill:"Medium"     },
+      { icon:"✅", title:"Policy Compliance",       desc:"Category allowed for CC-IT-003",              level:"low",    pill:"Low Risk"   }
+    ],
+    recommendation: "approve",
+    aiSubtitle: "Analysis complete · Recommendation: Approve",
+    aiRecommTag: '<span style="background:#ebf5e0;color:#1a7a1a;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;">✓ RECOMMEND APPROVAL</span>',
+    aiSummary: '<strong>Li Jie</strong> from the IT Department has submitted a purchase request for <strong>5 high-performance development laptops</strong> totaling <strong>¥62,500</strong>. The request is well-documented with detailed technical specifications and a clear business justification citing team expansion for backend development. Unit price of ¥12,500 falls within the standard market range (¥10,000–¥16,000). <span style="color:#c75300;">Note: Q2 IT budget utilization is currently at 78%, leaving ¥88,000 remaining — sufficient to cover this request.</span> Both Dell and Lenovo are on the company\'s approved vendor list.',
+    aiHighlights: [
+      { cls:"hl-green",  text:"✓ Price within market range"    },
+      { cls:"hl-green",  text:"✓ Approved vendor"              },
+      { cls:"hl-green",  text:"✓ Within approver limit"        },
+      { cls:"hl-orange", text:"⚠ Q2 budget 78% consumed"       },
+      { cls:"hl-blue",   text:"ℹ 5 similar requests approved in Q1" }
+    ],
+    details: {
+      category:    "IT Hardware – Computing Devices",
+      quantity:    "5 units",
+      unitPrice:   "¥12,500.00",
+      costCenter:  "CC-IT-003 (IT Operations)",
+      requiredBy:  "May 1, 2026",
+      supplier:    "Dell / Lenovo (preferred)",
+      specs:       "CPU: Intel Core i7-13th Gen | RAM: 32GB DDR5 | Storage: 512GB NVMe SSD | Display: 14\" FHD IPS | OS: Windows 11 Pro",
+      justification: "Team expansion of 5 backend developers requires new workstations. Current shared equipment is insufficient for containerized development workflows. Expected productivity improvement: ~30%."
+    },
+    urgent: false
+  },
+
+  "PR-2026-0043": {
+    id: "PR-2026-0043",
+    title: "Standing Desk Ergonomic Upgrade",
+    amount: "¥8,800",
+    amountRaw: 8800,
+    requester: "Zhang Wei",
+    dept: "Operations Department",
+    date: "Apr 3, 2026",
+    scoreTotal: 71,
+    scoreLabel: "Acceptable Quality",
+    scoreColor: "medium",
+    scoreSub: "Below average — review recommended",
+    scoreDims: [
+      { label: "Completeness",         val: 60, color: "orange" },
+      { label: "Compliance",           val: 45, color: "red"    },
+      { label: "Price Reasonableness", val: 80, color: "blue"   },
+      { label: "Justification Quality",val: 52, color: "orange" }
+    ],
+    riskOverall: "Medium",
+    riskClass: "risk-mid",
+    riskItems: [
+      { icon:"✅", title:"Budget Availability",      desc:"¥31,000 remaining in Q2 Ops budget",                   level:"low",    pill:"Low Risk"  },
+      { icon:"❌", title:"Vendor Compliance",        desc:"\"ErgoPro Direct\" is NOT on approved vendor list",      level:"high",   pill:"High Risk" },
+      { icon:"✅", title:"Budget Consumption Rate",  desc:"61% of Q2 Operations budget committed",                  level:"low",    pill:"Low Risk"  },
+      { icon:"⚠️", title:"Policy Compliance",        desc:"Furniture category requires Facilities dept. co-sign",   level:"medium", pill:"Medium"    }
+    ],
+    recommendation: "reject",
+    aiSubtitle: "Analysis complete · Recommendation: Reject",
+    aiRecommTag: '<span style="background:#ffeaea;color:#c0392b;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;">✗ RECOMMEND REJECTION</span>',
+    aiSummary: '<strong>Zhang Wei</strong> from Operations has requested <strong>4 ergonomic standing desks</strong> at ¥2,200/unit (total ¥8,800) from <span style="color:#c0392b;font-weight:600;">"ErgoPro Direct"</span>, a supplier that is <strong>not on the approved vendor list</strong>. The justification is brief (43 words) and lacks documented health or productivity impact data. Additionally, furniture procurement for the Operations department requires a co-signature from the Facilities manager per policy CC-FURN-02. <span style="color:#c75300;">Two issues must be resolved before approval: (1) switch to an approved furniture supplier, or formally request vendor onboarding, and (2) obtain Facilities sign-off.</span>',
+    aiHighlights: [
+      { cls:"hl-red",    text:"✗ Non-approved vendor"               },
+      { cls:"hl-red",    text:"✗ Missing Facilities co-sign"        },
+      { cls:"hl-orange", text:"⚠ Weak justification (43 words)"     },
+      { cls:"hl-green",  text:"✓ Budget sufficient"                 },
+      { cls:"hl-blue",   text:"ℹ Price within furniture market range"}
+    ],
+    details: {
+      category:    "Office Furniture – Ergonomic Equipment",
+      quantity:    "4 units",
+      unitPrice:   "¥2,200.00",
+      costCenter:  "CC-OPS-001 (Operations)",
+      requiredBy:  "Apr 30, 2026",
+      supplier:    "ErgoPro Direct (not approved)",
+      specs:       "Height-adjustable standing desk, 140×70cm surface, dual motor lift, memory presets, max load 80kg",
+      justification: "Team requests ergonomic desks to reduce back strain and improve productivity during long working hours."
+    },
+    urgent: true
+  },
+
+  "PR-2026-0042": {
+    id: "PR-2026-0042",
+    title: "Software License Renewal – Adobe Creative Cloud",
+    amount: "¥24,000",
+    amountRaw: 24000,
+    requester: "Liu Yang",
+    dept: "Marketing Department",
+    date: "Apr 1, 2026",
+    scoreTotal: 95,
+    scoreLabel: "Excellent Quality",
+    scoreColor: "good",
+    scoreSub: "Top 5% of recent requests",
+    scoreDims: [
+      { label: "Completeness",         val: 100, color: "green" },
+      { label: "Compliance",           val: 100, color: "green" },
+      { label: "Price Reasonableness", val: 90,  color: "green" },
+      { label: "Justification Quality",val: 88,  color: "green" }
+    ],
+    riskOverall: "Low",
+    riskClass: "risk-low",
+    riskItems: [
+      { icon:"✅", title:"Budget Availability",      desc:"¥52,000 remaining in Q2 Marketing budget",          level:"low", pill:"Low Risk" },
+      { icon:"✅", title:"Vendor Compliance",        desc:"Adobe Systems on approved software vendor list",      level:"low", pill:"Low Risk" },
+      { icon:"✅", title:"Budget Consumption Rate",  desc:"48% of Q2 Marketing budget committed",               level:"low", pill:"Low Risk" },
+      { icon:"✅", title:"Policy Compliance",        desc:"Annual software renewal — standard workflow applies", level:"low", pill:"Low Risk" }
+    ],
+    recommendation: "approve",
+    aiSubtitle: "Analysis complete · Recommendation: Approve",
+    aiRecommTag: '<span style="background:#ebf5e0;color:#1a7a1a;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;">✓ RECOMMEND APPROVAL</span>',
+    aiSummary: '<strong>Liu Yang</strong> from Marketing is renewing the team\'s <strong>Adobe Creative Cloud annual license</strong> for 10 seats at ¥2,400/seat (total ¥24,000). This is an annual recurring purchase — the same renewal was approved in April 2025 at ¥22,800. The 5.3% price increase is within the standard SaaS inflation tolerance. All documentation is complete, Adobe is an approved vendor, and the Q2 Marketing budget has sufficient remaining balance. <span style="color:#1a7a1a;">No compliance issues detected. Standard fast-track approval recommended.</span>',
+    aiHighlights: [
+      { cls:"hl-green", text:"✓ Recurring annual renewal"            },
+      { cls:"hl-green", text:"✓ Approved vendor (Adobe)"             },
+      { cls:"hl-green", text:"✓ All fields complete"                 },
+      { cls:"hl-green", text:"✓ Budget well within limits"           },
+      { cls:"hl-blue",  text:"ℹ Price +5.3% vs last year (¥22,800)" }
+    ],
+    details: {
+      category:    "Software Licenses – Creative & Design",
+      quantity:    "10 seats",
+      unitPrice:   "¥2,400.00 / seat / year",
+      costCenter:  "CC-MKT-001 (Marketing)",
+      requiredBy:  "May 1, 2026",
+      supplier:    "Adobe Systems (authorized reseller)",
+      specs:       "Adobe Creative Cloud All Apps – 10 named user licenses, annual term, cloud storage 1TB/user, includes Photoshop, Illustrator, Premiere Pro, After Effects",
+      justification: "Annual renewal of Adobe Creative Cloud licenses for the Marketing design team. These tools are essential for all digital content production, brand materials, and video campaigns. Non-renewal would halt all design operations. Renewing 2 weeks ahead of expiry (May 15) to avoid workflow interruption."
+    },
+    urgent: false
+  },
+
+  "PR-2026-0040": {
+    id: "PR-2026-0040",
+    title: "Server Infrastructure Upgrade – Phase 2",
+    amount: "¥156,000",
+    amountRaw: 156000,
+    requester: "Chen Hao",
+    dept: "IT Infrastructure",
+    date: "Mar 31, 2026",
+    scoreTotal: 76,
+    scoreLabel: "Acceptable Quality",
+    scoreColor: "medium",
+    scoreSub: "Requires careful review",
+    scoreDims: [
+      { label: "Completeness",         val: 88, color: "green"  },
+      { label: "Compliance",           val: 80, color: "blue"   },
+      { label: "Price Reasonableness", val: 72, color: "orange" },
+      { label: "Justification Quality",val: 65, color: "orange" }
+    ],
+    riskOverall: "High",
+    riskClass: "risk-high",
+    riskItems: [
+      { icon:"❌", title:"Budget Availability",      desc:"¥98,000 remaining — request is ¥58,000 over available budget",        level:"high",   pill:"High Risk"  },
+      { icon:"✅", title:"Vendor Compliance",        desc:"Huawei Cloud & Dell EMC on approved infrastructure vendor list",       level:"low",    pill:"Low Risk"   },
+      { icon:"❌", title:"Budget Consumption Rate",  desc:"Q2 IT Infrastructure budget at 94% — critically high",                level:"high",   pill:"High Risk"  },
+      { icon:"⚠️", title:"Approval Authority",       desc:"¥156,000 exceeds direct manager limit (¥100,000) — CIO sign-off required", level:"high","pill":"High Risk" }
+    ],
+    recommendation: "reject",
+    aiSubtitle: "Analysis complete · Recommendation: Reject / Escalate",
+    aiRecommTag: '<span style="background:#ffeaea;color:#c0392b;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;">✗ RECOMMEND REJECTION / ESCALATE</span>',
+    aiSummary: '<strong>Chen Hao</strong> from IT Infrastructure is requesting ¥156,000 for Phase 2 of a server upgrade (4× rack servers + network switches). <span style="color:#c0392b;font-weight:600;">This request has two critical blockers:</span> (1) the Q2 IT Infrastructure budget is at <strong>94% utilization</strong> with only ¥98,000 remaining — the request exceeds available funds by ¥58,000; (2) the amount exceeds your approval authority (¥100,000 limit) and requires <strong>CIO countersignature</strong> per policy FIN-APPR-03. <span style="color:#c75300;">Recommend rejecting with instruction to either defer to Q3 budget cycle or split into compliant sub-requests, and to re-submit with CIO co-approval.</span>',
+    aiHighlights: [
+      { cls:"hl-red",    text:"✗ Exceeds available budget (¥58K over)"     },
+      { cls:"hl-red",    text:"✗ Exceeds approval authority limit"          },
+      { cls:"hl-red",    text:"✗ Budget at 94% — critical"                  },
+      { cls:"hl-orange", text:"⚠ Price 12% above benchmark"                 },
+      { cls:"hl-blue",   text:"ℹ Phase 1 approved Dec 2025 (¥140,000)"      }
+    ],
+    details: {
+      category:    "IT Infrastructure – Server & Networking",
+      quantity:    "1 lot (4 servers + 2 switches)",
+      unitPrice:   "¥156,000.00 (lot price)",
+      costCenter:  "CC-IT-INF-001 (Infrastructure)",
+      requiredBy:  "May 15, 2026",
+      supplier:    "Huawei Cloud / Dell EMC (joint supply)",
+      specs:       "4× Dell PowerEdge R750 (2×Xeon Gold, 256GB RAM, 10TB NVMe) + 2× Huawei CE6870 48-port 10GE switches + rack cabling. Supports 3-year extended warranty.",
+      justification: "Phase 2 server expansion to support increased workload from new ERP rollout (Q3 target). Phase 1 baseline capacity will be exhausted by June based on current growth rate. Delay will impact ERP go-live timeline."
+    },
+    urgent: false
+  },
+
+  "PR-2026-0038": {
+    id: "PR-2026-0038",
+    title: "Marketing Dept. Printing Supplies – Q2",
+    amount: "¥3,600",
+    amountRaw: 3600,
+    requester: "Sun Li",
+    dept: "Marketing Department",
+    date: "Mar 30, 2026",
+    scoreTotal: 91,
+    scoreLabel: "Excellent Quality",
+    scoreColor: "good",
+    scoreSub: "Top 10% of recent requests",
+    scoreDims: [
+      { label: "Completeness",         val: 95, color: "green" },
+      { label: "Compliance",           val: 100,color: "green" },
+      { label: "Price Reasonableness", val: 88, color: "green" },
+      { label: "Justification Quality",val: 82, color: "green" }
+    ],
+    riskOverall: "Low",
+    riskClass: "risk-low",
+    riskItems: [
+      { icon:"✅", title:"Budget Availability",      desc:"¥52,000 remaining in Q2 Marketing budget",              level:"low", pill:"Low Risk" },
+      { icon:"✅", title:"Vendor Compliance",        desc:"Office Depot on approved office supplies vendor list",    level:"low", pill:"Low Risk" },
+      { icon:"✅", title:"Budget Consumption Rate",  desc:"48% of Q2 Marketing budget committed",                   level:"low", pill:"Low Risk" },
+      { icon:"✅", title:"Policy Compliance",        desc:"Office supplies category — no additional approval needed",level:"low", pill:"Low Risk" }
+    ],
+    recommendation: "approve",
+    aiSubtitle: "Analysis complete · Recommendation: Approve",
+    aiRecommTag: '<span style="background:#ebf5e0;color:#1a7a1a;border-radius:20px;padding:3px 14px;font-size:12px;font-weight:600;">✓ RECOMMEND APPROVAL</span>',
+    aiSummary: '<strong>Sun Li</strong> from Marketing has submitted a routine Q2 printing supplies request totaling <strong>¥3,600</strong> — ink cartridges, A4 paper, and folders from Office Depot. This is a standard recurring quarterly purchase consistent with previous Q2 orders (¥3,200 in Q2 2025, +12.5% for inflation). <span style="color:#1a7a1a;">All compliance checks pass: approved vendor, within budget, complete documentation.</span> The low value and routine nature of this request makes it suitable for fast-track approval.',
+    aiHighlights: [
+      { cls:"hl-green", text:"✓ Routine recurring purchase"         },
+      { cls:"hl-green", text:"✓ Approved vendor (Office Depot)"     },
+      { cls:"hl-green", text:"✓ Low value – fast track eligible"    },
+      { cls:"hl-green", text:"✓ All fields complete"                },
+      { cls:"hl-blue",  text:"ℹ +12.5% vs Q2 2025 (inflation adj.)" }
+    ],
+    details: {
+      category:    "Office Supplies – Printing & Consumables",
+      quantity:    "1 lot",
+      unitPrice:   "¥3,600.00 (lot price)",
+      costCenter:  "CC-MKT-001 (Marketing)",
+      requiredBy:  "Apr 15, 2026",
+      supplier:    "Office Depot (approved)",
+      specs:       "HP 305XL ink cartridges ×20 sets; A4 80gsm paper ×50 reams; clear document folders ×200 pcs; binder clips assorted ×10 boxes",
+      justification: "Standard Q2 office printing supplies replenishment for the Marketing department. Stock level is below 2-week threshold. Required to maintain daily operations and campaign material printing. Pricing is based on Office Depot quarterly contract rates."
+    },
+    urgent: false
+  }
+};
+
+var ORDERED_IDS = [
+  "PR-2026-0044",
+  "PR-2026-0043",
+  "PR-2026-0042",
+  "PR-2026-0040",
+  "PR-2026-0038"
+];
+
+var currentId = "PR-2026-0044";
+var approvedSet = {};
+
+// ─── Render sidebar list ──────────────────────────────────────────────────────
+
+function renderSidebar() {
+  var html = "";
+  ORDERED_IDS.forEach(function(id) {
+    if (approvedSet[id]) return; // hide actioned items
+    var r = REQUESTS[id];
+    var selected = (id === currentId) ? " selected" : "";
+    var urgent   = r.urgent ? " urgent" : "";
+    html += '<div class="request-item' + selected + urgent + '" onclick="selectRequest(\'' + id + '\')">' +
+      '<div class="req-header">' +
+        '<span class="req-id">' + r.id + '</span>' +
+        '<span class="req-amount">' + r.amount + '</span>' +
+      '</div>' +
+      '<div class="req-title">' + r.title + '</div>' +
+      '<div class="req-meta">' +
+        '<span>' + r.requester + ' · ' + r.date.split(',')[0] + '</span>' +
+        '<span class="ai-mini-score">✨ ' + r.scoreTotal + '</span>' +
+        '<span class="risk-tag ' + r.riskClass + '">' + r.riskOverall + ' Risk</span>' +
+      '</div>' +
+    '</div>';
+  });
+  document.getElementById("requestList").innerHTML = html;
+  var remaining = ORDERED_IDS.filter(function(id){ return !approvedSet[id]; }).length;
+  document.getElementById("pendingBadge").textContent = remaining;
+  document.getElementById("pendingCount").textContent = remaining + " pending";
+}
+
+// ─── Render main content ──────────────────────────────────────────────────────
+
+function renderContent(id) {
+  var r = REQUESTS[id];
+
+  // AI score color
+  var scoreColorClass = r.scoreColor;
+  var scoreBarColor = r.scoreColor === "good" ? "#1a7a1a" : (r.scoreColor === "medium" ? "#0a6ed1" : "#c75300");
+
+  // Dimensions HTML
+  var dimsHtml = "";
+  r.scoreDims.forEach(function(d) {
+    var valColor = d.color === "green" ? "#1a7a1a" : (d.color === "blue" ? "#0a6ed1" : (d.color === "orange" ? "#c75300" : "#c0392b"));
+    dimsHtml += '<div class="dim-row">' +
+      '<span class="dim-label">' + d.label + '</span>' +
+      '<div class="dim-bar"><div class="dim-bar-fill ' + d.color + '" style="width:' + d.val + '%;"></div></div>' +
+      '<span class="dim-val" style="color:' + valColor + ';">' + d.val + '</span>' +
+    '</div>';
+  });
+
+  // Risk items HTML
+  var riskHtml = "";
+  r.riskItems.forEach(function(item) {
+    riskHtml += '<div class="risk-item">' +
+      '<span class="risk-icon">' + item.icon + '</span>' +
+      '<div class="risk-text">' +
+        '<div class="risk-title">' + item.title + '</div>' +
+        '<div class="risk-desc">' + item.desc + '</div>' +
+        '<span class="risk-pill ' + item.level + '">' + item.pill + '</span>' +
+      '</div>' +
+    '</div>';
+  });
+
+  // Overall risk badge
+  var riskOverallStyle = r.riskOverall === "Low"
+    ? "background:#ebf5e0;color:#1a7a1a"
+    : (r.riskOverall === "Medium" ? "background:#fff4e0;color:#c75300" : "background:#ffeaea;color:#c0392b");
+
+  // Highlights
+  var hlHtml = "";
+  r.aiHighlights.forEach(function(h) {
+    hlHtml += '<span class="highlight-tag ' + h.cls + '">' + h.text + '</span>';
+  });
+
+  // Action buttons (approve/reject with different emphasis based on recommendation)
+  var approveStyle = r.recommendation === "approve"
+    ? 'class="btn btn-approve"'
+    : 'class="btn btn-approve" style="background:white;color:#1a7a1a;border-color:#1a7a1a;"';
+  var rejectStyle = r.recommendation === "reject"
+    ? 'class="btn btn-reject" style="background:#ffeaea;"'
+    : 'class="btn btn-reject"';
+
+  var det = r.details;
+
+  document.getElementById("mainContent").innerHTML =
+    '<div class="content-header">' +
+      '<div class="content-title">' +
+        '<h1>' + r.title + '</h1>' +
+        '<div class="meta">' + r.id + ' · Submitted by ' + r.requester + ' (' + r.dept + ') · ' + r.date + ' · Awaiting your approval</div>' +
+      '</div>' +
+      '<div class="action-buttons">' +
+        '<button class="btn btn-back">← Back</button>' +
+        '<button ' + rejectStyle + ' onclick="doReject(\'' + id + '\')">✗ Reject</button>' +
+        '<button ' + approveStyle + ' onclick="doApprove(\'' + id + '\')">✓ Approve</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="cards-grid">' +
+
+      // AI Summary
+      '<div class="card ai-summary-card card-full">' +
+        '<div class="ai-summary-header">' +
+          '<div class="ai-avatar">✨</div>' +
+          '<div>' +
+            '<div style="font-weight:600;font-size:13px;">AI Approval Assistant</div>' +
+            '<div style="font-size:11px;color:#6a6d70;">' + r.aiSubtitle + '</div>' +
+          '</div>' +
+          '<div style="margin-left:auto;">' + r.aiRecommTag + '</div>' +
+        '</div>' +
+        '<div class="ai-sum-body">' +
+          '<div class="ai-sum-text">' + r.aiSummary + '</div>' +
+          '<div class="ai-highlights">' + hlHtml + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      // Quality Score
+      '<div class="card">' +
+        '<div class="card-header">' +
+          '<h3>✨ AI Quality Score</h3>' +
+          '<span style="font-size:11px;color:#6a6d70;">Completeness &amp; compliance</span>' +
+        '</div>' +
+        '<div class="card-body">' +
+          '<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:12px;">' +
+            '<div class="score-big ' + scoreColorClass + '">' + r.scoreTotal + '</div>' +
+            '<div>' +
+              '<div style="font-size:13px;font-weight:500;color:' + scoreBarColor + ';">' + r.scoreLabel + '</div>' +
+              '<div class="score-sub">' + r.scoreSub + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="score-bar"><div class="score-bar-fill" style="width:' + r.scoreTotal + '%;background:linear-gradient(90deg,' + scoreBarColor + ', ' + (r.scoreColor === "good" ? "#2ecc40" : (r.scoreColor === "medium" ? "#6366f1" : "#e8a000")) + ');"></div></div>' +
+          '<div class="score-dims">' + dimsHtml + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      // Risk Assessment
+      '<div class="card">' +
+        '<div class="card-header">' +
+          '<h3>Risk Assessment</h3>' +
+          '<span style="' + riskOverallStyle + ';border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;">Overall: ' + r.riskOverall + '</span>' +
+        '</div>' +
+        '<div class="card-body">' + riskHtml + '</div>' +
+      '</div>' +
+
+      // Request Details
+      '<div class="card card-full">' +
+        '<div class="card-header"><h3>Request Details</h3></div>' +
+        '<div class="card-body">' +
+          '<div class="detail-grid">' +
+            '<div class="detail-item"><div class="label">Category</div><div class="value">' + det.category + '</div></div>' +
+            '<div class="detail-item"><div class="label">Quantity</div><div class="value">' + det.quantity + '</div></div>' +
+            '<div class="detail-item"><div class="label">Unit Price</div><div class="value">' + det.unitPrice + '</div></div>' +
+            '<div class="detail-item"><div class="label">Total Amount</div><div class="value" style="color:#0a6ed1;font-size:15px;">' + r.amount + '</div></div>' +
+            '<div class="detail-item"><div class="label">Cost Center</div><div class="value">' + det.costCenter + '</div></div>' +
+            '<div class="detail-item"><div class="label">Required By</div><div class="value">' + det.requiredBy + '</div></div>' +
+            '<div class="detail-item"><div class="label">Supplier</div><div class="value">' + det.supplier + '</div></div>' +
+            '<div class="detail-item" style="grid-column:1/-1;"><div class="label">Specifications</div><div class="value" style="font-weight:400;font-size:12px;margin-top:4px;padding:8px;background:#f7f7f7;border-radius:4px;">' + det.specs + '</div></div>' +
+            '<div class="detail-item" style="grid-column:1/-1;"><div class="label">Business Justification</div><div class="value" style="font-weight:400;font-size:12px;margin-top:4px;">' + det.justification + '</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      // Approval Comment
+      '<div class="card card-full">' +
+        '<div class="card-header"><h3>Approval Comments</h3></div>' +
+        '<div class="card-body">' +
+          '<textarea class="comment-area" id="commentArea" placeholder="Add your comments here (optional for approval, required for rejection)..."></textarea>' +
+          '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">' +
+            '<button class="btn btn-reject" onclick="doReject(\'' + id + '\')">✗ Reject with Comments</button>' +
+            '<button class="btn btn-approve" onclick="doApprove(\'' + id + '\')">✓ Approve</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+    '</div>';
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
+function selectRequest(id) {
+  currentId = id;
+  renderSidebar();
+  renderContent(id);
+  document.getElementById("mainContent").scrollTop = 0;
+}
+
+function doApprove(id) {
+  approvedSet[id] = "approved";
+  showToast("✓ Request " + id + " has been approved.");
+  advanceToNext(id);
+}
+
+function doReject(id) {
+  var comment = document.getElementById("commentArea");
+  if (comment && !comment.value.trim()) {
+    comment.style.borderColor = "#c0392b";
+    comment.placeholder = "⚠ Comment is required for rejection.";
+    comment.focus();
+    return;
+  }
+  approvedSet[id] = "rejected";
+  showToast("✗ Request " + id + " has been rejected.");
+  advanceToNext(id);
+}
+
+function advanceToNext(doneId) {
+  var remaining = ORDERED_IDS.filter(function(id){ return !approvedSet[id]; });
+  renderSidebar();
+  if (remaining.length > 0) {
+    var next = remaining[0];
+    currentId = next;
+    renderSidebar();
+    renderContent(next);
+  } else {
+    document.getElementById("mainContent").innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#6a6d70;">' +
+        '<div style="font-size:48px;margin-bottom:16px;">✅</div>' +
+        '<div style="font-size:18px;font-weight:600;margin-bottom:8px;color:#1a7a1a;">All requests reviewed!</div>' +
+        '<div style="font-size:14px;">Your approval inbox is empty. Check back later.</div>' +
+      '</div>';
+  }
+}
+
+function showToast(msg) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(function(){ t.classList.remove("show"); }, 3000);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+renderSidebar();
+renderContent(currentId);
+</script>
+</body>
+</html>

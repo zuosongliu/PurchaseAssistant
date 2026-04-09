@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Assisted Purchase Request - Smart Purchase Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "72", Arial, sans-serif; background: #f5f5f5; color: #32363a; font-size: 14px; }
+
+  .shellbar {
+    background: #0a6ed1; color: white; height: 44px;
+    display: flex; align-items: center; padding: 0 16px; gap: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .shellbar .logo { font-weight: bold; font-size: 16px; }
+  .shellbar .app-title { font-size: 14px; opacity: 0.9; border-left: 1px solid rgba(255,255,255,0.4); padding-left: 16px; }
+  .shellbar .spacer { flex: 1; }
+  .shellbar .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #c0392b; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: bold;
+  }
+
+  .breadcrumb {
+    padding: 8px 24px; font-size: 12px; color: #6a6d70;
+    display: flex; align-items: center; gap: 6px;
+    background: white; border-bottom: 1px solid #e5e5e5;
+  }
+  .breadcrumb a { color: #0a6ed1; text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  .page { display: flex; gap: 16px; padding: 16px 24px; max-width: 1200px; margin: 0 auto; }
+
+  /* Left Panel - Input */
+  .panel-left { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .panel-right { width: 380px; display: flex; flex-direction: column; gap: 12px; }
+
+  .card {
+    background: white; border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card-header h2 { font-size: 16px; font-weight: 600; flex: 1; }
+  .card-header .step-badge {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #0a6ed1; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: bold; flex-shrink: 0;
+  }
+  .card-header .step-badge.done { background: #1a7a1a; }
+  .card-body { padding: 20px; }
+
+  /* AI Input Area */
+  .ai-input-area {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+    border: 2px dashed #0a6ed1;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .ai-input-area .ai-icon { font-size: 32px; margin-bottom: 8px; }
+  .ai-input-area p { font-size: 13px; color: #6a6d70; margin-bottom: 12px; }
+  .ai-textarea {
+    width: 100%; border: 1px solid #d9d9d9; border-radius: 6px;
+    padding: 12px; font-size: 14px; font-family: inherit;
+    resize: vertical; min-height: 80px;
+    background: white;
+  }
+  .ai-textarea:focus { outline: none; border-color: #0a6ed1; box-shadow: 0 0 0 2px rgba(10,110,209,0.1); }
+
+  .ai-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .example-chip {
+    background: white; border: 1px solid #0a6ed1; color: #0a6ed1;
+    border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  .example-chip:hover { background: #e8f1fb; }
+
+  .btn { padding: 8px 20px; border-radius: 4px; font-size: 14px; cursor: pointer; border: 1px solid; font-family: inherit; }
+  .btn-primary { background: #0a6ed1; color: white; border-color: #0a6ed1; }
+  .btn-primary:hover { background: #085caf; }
+  .btn-ai {
+    background: linear-gradient(135deg, #0a6ed1, #6366f1);
+    color: white; border: none; border-radius: 6px;
+    padding: 10px 24px; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-family: inherit; font-weight: 500;
+  }
+  .btn-secondary { background: white; color: #32363a; border-color: #d9d9d9; }
+
+  /* Form Fields */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; color: #6a6d70; margin-bottom: 4px; font-weight: 500; }
+  .form-label .required { color: #c0392b; margin-left: 2px; }
+  .form-control {
+    width: 100%; border: 1px solid #d9d9d9; border-radius: 4px;
+    padding: 7px 10px; font-size: 14px; font-family: inherit;
+    background: white;
+  }
+  .form-control:focus { outline: none; border-color: #0a6ed1; }
+  .form-control.ai-filled { background: #f0f7ff; border-color: #0a6ed1; }
+  .ai-tag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; color: #6366f1; margin-left: 6px;
+    font-weight: 500;
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-hint { font-size: 11px; color: #6a6d70; margin-top: 3px; }
+
+  /* AI Suggestion Panel */
+  .ai-suggestion-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-bottom: 1px solid #e5e5e5;
+    background: linear-gradient(135deg, #f0f7ff, #ede9ff);
+  }
+  .ai-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #0a6ed1, #6366f1);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 16px;
+  }
+  .ai-name { font-weight: 600; font-size: 14px; }
+  .ai-status { font-size: 11px; color: #6a6d70; }
+  .thinking-dots span {
+    display: inline-block; width: 4px; height: 4px;
+    background: #0a6ed1; border-radius: 50%; margin: 0 1px;
+    animation: blink 1.4s infinite both;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  .suggestion-section { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; }
+  .suggestion-section:last-child { border-bottom: none; }
+  .suggestion-title { font-size: 11px; font-weight: 600; color: #6a6d70; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+  .category-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .category-chip {
+    border: 1px solid #d9d9d9; border-radius: 20px;
+    padding: 4px 12px; font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .category-chip.selected { background: #0a6ed1; color: white; border-color: #0a6ed1; }
+  .category-chip .confidence { font-size: 10px; opacity: 0.8; }
+
+  .supplier-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid #f7f7f7;
+  }
+  .supplier-item:last-child { border-bottom: none; }
+  .supplier-logo {
+    width: 36px; height: 36px; border-radius: 6px;
+    background: #e8f1fb; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; color: #0a6ed1; flex-shrink: 0;
+  }
+  .supplier-info { flex: 1; }
+  .supplier-name { font-weight: 500; font-size: 13px; }
+  .supplier-meta { font-size: 11px; color: #6a6d70; margin-top: 1px; }
+  .supplier-score { text-align: right; }
+  .score-stars { color: #e8a000; font-size: 12px; }
+  .score-num { font-size: 11px; color: #6a6d70; }
+
+  .price-range {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .price-bar {
+    flex: 1; height: 6px; background: #e5e5e5; border-radius: 3px;
+    position: relative;
+  }
+  .price-bar-fill {
+    position: absolute; height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #1a7a1a, #e8a000);
+  }
+  .price-marker {
+    position: absolute; top: -4px; width: 14px; height: 14px;
+    background: #0a6ed1; border-radius: 50%; transform: translateX(-50%);
+    border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .price-label { font-size: 12px; color: #6a6d70; white-space: nowrap; }
+
+  .compliance-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .compliance-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .compliance-text { font-size: 12px; color: #32363a; }
+  .compliance-text .sub { color: #6a6d70; font-size: 11px; }
+
+  .action-bar {
+    padding: 12px 20px;
+    background: #f7f7f7; border-top: 1px solid #e5e5e5;
+    display: flex; gap: 8px; justify-content: flex-end;
+  }
+</style>
+</head>
+<body>
+
+<div class="shellbar">
+  <div class="logo">SAP</div>
+  <div class="app-title">Smart Purchase Assistant</div>
+  <div class="spacer"></div>
+  <div class="avatar">JL</div>
+</div>
+
+<div class="breadcrumb">
+  <a href="#">My Purchase Requests</a>
+  <span>›</span>
+  <span>New Request (AI-Assisted)</span>
+</div>
+
+<div class="page">
+
+  <!-- Left: Form Input -->
+  <div class="panel-left">
+
+    <!-- Step 1: Describe Your Need -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge done">1</div>
+        <h2>Describe Your Purchase Need</h2>
+      </div>
+      <div class="card-body">
+        <div class="ai-input-area">
+          <div class="ai-icon">&#x2728;</div>
+          <p>Tell the AI assistant what you need in natural language. The more detail you provide, the better suggestions you'll receive.</p>
+          <textarea class="ai-textarea" placeholder="e.g., I need 5 laptops for our new software development team. They will be doing heavy coding and running virtual machines. Budget is around ¥12,000 each.">I need 5 high-performance laptops for our backend development team. They will be running Docker containers and multiple IDEs simultaneously. Prefer Dell or Lenovo, budget around ¥10,000-15,000 per unit.</textarea>
+          <div class="ai-examples">
+            <span class="example-chip">&#128204; Office Chairs</span>
+            <span class="example-chip">&#128204; Software License</span>
+            <span class="example-chip">&#128204; Training Course</span>
+            <span class="example-chip">&#128204; Network Equipment</span>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn-ai">&#x2728; Generate AI Suggestions</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Purchase Request Details -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">2</div>
+        <h2>Purchase Request Details</h2>
+        <span style="font-size:12px; color:#6366f1; font-weight:500;">&#x2728; AI pre-filled · Review and confirm</span>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Request Title <span class="required">*</span></label>
+            <input class="form-control ai-filled" type="text" value="High-Performance Laptops for Backend Dev Team">
+            <div class="ai-tag">&#x2728; AI suggested</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category <span class="required">*</span></label>
+            <select class="form-control ai-filled">
+              <option>IT Hardware - Computing Devices</option>
+            </select>
+            <div class="ai-tag">&#x2728; AI suggested · 96% confident</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Quantity <span class="required">*</span></label>
+            <input class="form-control ai-filled" type="number" value="5">
+            <div class="ai-tag">&#x2728; Extracted from description</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estimated Unit Price (CNY) <span class="required">*</span></label>
+            <input class="form-control ai-filled" type="text" value="12,500">
+            <div class="form-hint">Market reference: ¥10,000 ~ ¥16,000</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Required By Date</label>
+            <input class="form-control" type="date" value="2026-05-01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cost Center <span class="required">*</span></label>
+            <input class="form-control" type="text" placeholder="e.g., CC-IT-001" value="CC-IT-003">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Technical Specifications</label>
+          <textarea class="form-control ai-filled" style="min-height:80px; resize:vertical;">CPU: Intel Core i7-13th Gen or equivalent; RAM: 32GB DDR5; Storage: 512GB NVMe SSD; Display: 14" FHD IPS; OS: Windows 11 Pro; Weight: &lt; 1.5kg preferred</textarea>
+          <div class="ai-tag">&#x2728; AI generated specifications</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Business Justification <span class="required">*</span></label>
+          <textarea class="form-control ai-filled" style="min-height:60px; resize:vertical;">Team expansion of 5 backend developers requires new workstations. Current shared equipment is insufficient for containerized development workflows. Expected productivity improvement: ~30%.</textarea>
+          <div class="ai-tag">&#x2728; AI generated · please review</div>
+        </div>
+      </div>
+      <div class="action-bar">
+        <button class="btn btn-secondary">Save Draft</button>
+        <button class="btn btn-primary">Submit for Approval ›</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: AI Suggestions Panel -->
+  <div class="panel-right">
+
+    <!-- AI Status -->
+    <div class="card">
+      <div class="ai-suggestion-header">
+        <div class="ai-avatar">&#x2728;</div>
+        <div>
+          <div class="ai-name">Purchase AI Assistant</div>
+          <div class="ai-status">Analysis complete · Updated 2 seconds ago</div>
+        </div>
+      </div>
+
+      <!-- Category Suggestions -->
+      <div class="suggestion-section">
+        <div class="suggestion-title">Suggested Categories</div>
+        <div class="category-chips">
+          <div class="category-chip selected">IT Hardware <span class="confidence">96%</span></div>
+          <div class="category-chip">Computing <span class="confidence">91%</span></div>
+          <div class="category-chip">Workstation <span class="confidence">85%</span></div>
+          <div class="category-chip">Peripherals <span class="confidence">42%</span></div>
+        </div>
+      </div>
+
+      <!-- Recommended Suppliers -->
+      <div class="suggestion-section">
+        <div class="suggestion-title">Recommended Suppliers</div>
+        <div class="supplier-item">
+          <div class="supplier-logo">DE</div>
+          <div class="supplier-info">
+            <div class="supplier-name">Dell Technologies China</div>
+            <div class="supplier-meta">Preferred Vendor · Lead time: 7 days</div>
+          </div>
+          <div class="supplier-score">
+            <div class="score-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+            <div class="score-num">4.8/5.0</div>
+          </div>
+        </div>
+        <div class="supplier-item">
+          <div class="supplier-logo">LV</div>
+          <div class="supplier-info">
+            <div class="supplier-name">Lenovo Commercial</div>
+            <div class="supplier-meta">Approved Vendor · Lead time: 5 days</div>
+          </div>
+          <div class="supplier-score">
+            <div class="score-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</div>
+            <div class="score-num">4.5/5.0</div>
+          </div>
+        </div>
+        <div class="supplier-item">
+          <div class="supplier-logo">HP</div>
+          <div class="supplier-info">
+            <div class="supplier-name">HP Inc. Enterprise</div>
+            <div class="supplier-meta">Approved Vendor · Lead time: 10 days</div>
+          </div>
+          <div class="supplier-score">
+            <div class="score-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</div>
+            <div class="score-num">4.3/5.0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Price Reference -->
+      <div class="suggestion-section">
+        <div class="suggestion-title">Market Price Reference (CNY/unit)</div>
+        <div style="margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+            <span style="color:#6a6d70;">¥10,000</span>
+            <span style="font-weight:600; color:#0a6ed1;">Your estimate: ¥12,500</span>
+            <span style="color:#6a6d70;">¥16,000</span>
+          </div>
+          <div class="price-bar" style="position:relative; width:100%; height:6px; background:#e5e5e5; border-radius:3px;">
+            <div style="position:absolute; left:0; width:75%; height:100%; border-radius:3px; background:linear-gradient(90deg,#1a7a1a,#e8a000);"></div>
+            <div style="position:absolute; left:41.7%; top:-4px; width:14px; height:14px; background:#0a6ed1; border-radius:50%; transform:translateX(-50%); border:2px solid white; box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+          </div>
+        </div>
+        <div style="font-size:12px; color:#1a7a1a; background:#ebf5e0; padding:6px 10px; border-radius:4px;">
+          ✓ Price is within normal market range. No approval exceptions needed.
+        </div>
+      </div>
+
+      <!-- Compliance Check -->
+      <div class="suggestion-section">
+        <div class="suggestion-title">Compliance Pre-Check</div>
+        <div class="compliance-item">
+          <span class="compliance-icon">✅</span>
+          <div class="compliance-text">
+            Category matches procurement policy
+            <div class="sub">IT Hardware purchases allowed for this cost center</div>
+          </div>
+        </div>
+        <div class="compliance-item">
+          <span class="compliance-icon">✅</span>
+          <div class="compliance-text">
+            Total amount ¥62,500 within single approval limit
+            <div class="sub">Manager approval sufficient (limit: ¥100,000)</div>
+          </div>
+        </div>
+        <div class="compliance-item">
+          <span class="compliance-icon">⚠️</span>
+          <div class="compliance-text">
+            Q2 IT budget utilization at 78%
+            <div class="sub">Recommend including cost center approval note</div>
+          </div>
+        </div>
+        <div class="compliance-item">
+          <span class="compliance-icon">✅</span>
+          <div class="compliance-text">
+            Preferred vendor available for this category
+            <div class="sub">Dell and Lenovo are approved suppliers</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overall Score -->
+      <div class="suggestion-section" style="background:#f0f7ff;">
+        <div class="suggestion-title">AI Quality Assessment</div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="font-size:36px; font-weight:300; color:#0a6ed1;">88</div>
+          <div>
+            <div style="font-size:13px; font-weight:500; color:#1a7a1a;">Good Quality Request</div>
+            <div style="font-size:11px; color:#6a6d70; margin-top:2px;">High approval probability. Add cost center note to reach 95+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

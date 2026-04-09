@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Purchase Assistant - Demo Index</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "72", Arial, sans-serif; background: #f5f5f5; color: #32363a; }
+  .header {
+    background: linear-gradient(135deg, #0a6ed1, #0854a7);
+    color: white; padding: 40px 48px; margin-bottom: 32px;
+  }
+  .header h1 { font-size: 28px; font-weight: 300; margin-bottom: 8px; }
+  .header p { font-size: 14px; opacity: 0.8; max-width: 640px; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px 48px; }
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #32363a; border-left: 3px solid #0a6ed1; padding-left: 10px; }
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 32px; }
+  .card {
+    background: white; border-radius: 6px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    text-decoration: none; color: inherit;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: block;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+  .card-top {
+    height: 80px; display: flex; align-items: center; justify-content: center;
+    font-size: 32px; position: relative;
+  }
+  .card-top::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 2px;
+  }
+  .card-1 .card-top { background: linear-gradient(135deg, #e8f1fb, #c7dcf5); }
+  .card-1 .card-top::after { background: #0a6ed1; }
+  .card-2 .card-top { background: linear-gradient(135deg, #ede9ff, #d4cfff); }
+  .card-2 .card-top::after { background: #6366f1; }
+  .card-3 .card-top { background: linear-gradient(135deg, #ebf5e0, #c8e8b0); }
+  .card-3 .card-top::after { background: #1a7a1a; }
+  .card-4 .card-top { background: linear-gradient(135deg, #1a1d21, #252830); }
+  .card-4 .card-top::after { background: #0a6ed1; }
+  .card-body { padding: 16px 20px; }
+  .card-num { font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .card-desc { font-size: 12px; color: #6a6d70; line-height: 1.6; }
+  .card-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .tag { background: #f0f0f0; border-radius: 10px; padding: 2px 9px; font-size: 11px; color: #6a6d70; }
+  .tag.ai { background: #ede9ff; color: #6366f1; }
+  .tag.role { background: #e8f1fb; color: #0a6ed1; }
+
+  .tech-section { background: white; border-radius: 6px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .tech-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 12px; }
+  .tech-item { display: flex; align-items: flex-start; gap: 10px; }
+  .tech-icon { width: 32px; height: 32px; border-radius: 6px; background: #e8f1fb; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .tech-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .tech-desc { font-size: 11px; color: #6a6d70; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Smart Purchase Assistant</h1>
+  <p>Enterprise AI-assisted procurement platform built on SAP BTP. Select a demo page below to explore the UI mockups for each user role and application.</p>
+</div>
+
+<div class="container">
+  <h2>Application Demos</h2>
+  <div class="cards">
+    <a class="card card-1" href="01_my_purchase_requests.html">
+      <div class="card-top">&#x1F4CB;</div>
+      <div class="card-body">
+        <div class="card-num">Demo 01</div>
+        <div class="card-title">My Purchase Requests</div>
+        <div class="card-desc">Employee list report view for creating, tracking, and managing personal purchase requests with AI quality scores.</div>
+        <div class="card-tags">
+          <span class="tag role">Employee</span>
+          <span class="tag">List Report</span>
+          <span class="tag ai">AI Score</span>
+          <span class="tag">Fiori Elements</span>
+        </div>
+      </div>
+    </a>
+    <a class="card card-2" href="02_ai_assisted_request.html">
+      <div class="card-top">&#x2728;</div>
+      <div class="card-body">
+        <div class="card-num">Demo 02</div>
+        <div class="card-title">AI-Assisted Request Creation</div>
+        <div class="card-desc">Natural language input with AI generating category suggestions, supplier recommendations, price ranges, and compliance pre-checks.</div>
+        <div class="card-tags">
+          <span class="tag role">Employee</span>
+          <span class="tag ai">Gen AI</span>
+          <span class="tag ai">AI Suggestions</span>
+          <span class="tag">Compliance Check</span>
+        </div>
+      </div>
+    </a>
+    <a class="card card-3" href="03_approval_inbox.html">
+      <div class="card-top">&#x2705;</div>
+      <div class="card-body">
+        <div class="card-num">Demo 03</div>
+        <div class="card-title">Purchase Approval Inbox</div>
+        <div class="card-desc">Manager inbox with AI-generated approval summaries, risk assessments, quality scores, and one-click approval/rejection.</div>
+        <div class="card-tags">
+          <span class="tag role">Manager</span>
+          <span class="tag ai">AI Summary</span>
+          <span class="tag ai">Risk Analysis</span>
+          <span class="tag">Approval Workflow</span>
+        </div>
+      </div>
+    </a>
+    <a class="card card-4" href="04_analytics_dashboard.html">
+      <div class="card-top" style="color: #60a5fa;">&#x1F4CA;</div>
+      <div class="card-body">
+        <div class="card-num">Demo 04</div>
+        <div class="card-title">Procurement Analytics Dashboard</div>
+        <div class="card-desc">Dark-theme analytics with spend trends, department distribution, supplier rankings, heatmaps, and AI-generated text insights.</div>
+        <div class="card-tags">
+          <span class="tag role">Procurement Admin</span>
+          <span class="tag ai">AI Insights</span>
+          <span class="tag">Analytics</span>
+          <span class="tag">Heatmap</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <h2>Technical Stack</h2>
+  <div class="tech-section">
+    <div class="tech-grid">
+      <div class="tech-item">
+        <div class="tech-icon">&#x1F4E6;</div>
+        <div><div class="tech-name">SAP CAP (Node.js)</div><div class="tech-desc">Backend services, OData APIs, business logic</div></div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#x1F5A5;</div>
+        <div><div class="tech-name">SAP Fiori Elements</div><div class="tech-desc">List Report, Object Page, Analytical List Page</div></div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#x2728;</div>
+        <div><div class="tech-name">SAP Gen AI Hub</div><div class="tech-desc">AI text generation, classification, analysis</div></div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#x1F4BE;</div>
+        <div><div class="tech-name">SAP HANA Cloud</div><div class="tech-desc">Persistent data store for all procurement data</div></div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#x2601;</div>
+        <div><div class="tech-name">SAP BTP Cloud Foundry</div><div class="tech-desc">Deployment platform, XSUAA authentication</div></div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">&#x1F510;</div>
+        <div><div class="tech-name">Role-Based Auth</div><div class="tech-desc">Employee, Manager, Procurement Admin, Sys Admin</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

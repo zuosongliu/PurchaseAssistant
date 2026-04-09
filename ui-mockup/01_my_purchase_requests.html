@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Purchase Requests — Smart Purchase Assistant</title>
+
+  <script
+    id="sap-ui-bootstrap"
+    src="https://ui5.sap.com/1.136.8/resources/sap-ui-core.js"
+    data-sap-ui-theme="sap_horizon"
+    data-sap-ui-libs="sap.m,sap.ui.layout,sap.ui.core"
+    data-sap-ui-compatVersion="edge"
+    data-sap-ui-async="true"
+  ></script>
+
+  <script>
+    sap.ui.getCore().attachInit(function () {
+      sap.ui.require([
+        "sap/m/App",
+        "sap/m/Page",
+        "sap/m/Bar",
+        "sap/m/Title",
+        "sap/m/Button",
+        "sap/m/Table",
+        "sap/m/Column",
+        "sap/m/ColumnListItem",
+        "sap/m/Text",
+        "sap/m/Label",
+        "sap/m/Link",
+        "sap/m/ObjectStatus",
+        "sap/m/Dialog",
+        "sap/m/ScrollContainer",
+        "sap/m/List",
+        "sap/m/FeedListItem",
+        "sap/m/FeedInput",
+        "sap/m/MessageStrip",
+        "sap/m/MessageToast",
+        "sap/m/VBox",
+        "sap/m/HBox",
+        "sap/m/OverflowToolbar",
+        "sap/m/ToolbarSpacer",
+        "sap/m/SearchField",
+        "sap/ui/core/Icon",
+        "sap/m/IllustratedMessage",
+        "sap/ui/model/json/JSONModel",
+        "sap/m/Select",
+        "sap/ui/core/Item",
+        "sap/m/Input",
+        "sap/m/TextArea",
+        "sap/m/DatePicker",
+        "sap/m/StepInput",
+        "sap/ui/layout/form/SimpleForm",
+        "sap/ui/layout/form/FormElement",
+        "sap/m/CheckBox",
+        "sap/m/MessageBox"
+      ], function (
+        App, Page, Bar, Title, Button,
+        Table, Column, ColumnListItem,
+        Text, Label, Link, ObjectStatus,
+        Dialog, ScrollContainer,
+        List, FeedListItem, FeedInput, MessageStrip,
+        MessageToast, VBox, HBox,
+        OverflowToolbar, ToolbarSpacer, SearchField,
+        Icon, IllustratedMessage, JSONModel,
+        Select, Item, Input, TextArea, DatePicker, StepInput,
+        SimpleForm, FormElement, CheckBox, MessageBox
+      ) {
+
+        // ─── Utility ────────────────────────────────────────────────────────────
+        function _fmtTime(d) {
+          return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+
+        // ─── Purchase Requests Data ──────────────────────────────────────────────
+        var oPRModel = new JSONModel({
+          requests: [
+            {
+              id:        "PR-2026-0045",
+              title:     "Dell Laptop for Development Team",
+              category:  "IT Hardware",
+              amount:    "¥12,500.00",
+              submitted: "Apr 5, 2026",
+              status:    "Approved",
+              statusState: "Success",
+              aiScore:   92
+            },
+            {
+              id:        "PR-2026-0044",
+              title:     "Office Supplies Q2 Replenishment",
+              category:  "Office Supplies",
+              amount:    "¥3,200.00",
+              submitted: "Apr 4, 2026",
+              status:    "Pending Approval",
+              statusState: "Warning",
+              aiScore:   88
+            },
+            {
+              id:        "PR-2026-0043",
+              title:     "Standing Desk Ergonomic Upgrade",
+              category:  "Furniture",
+              amount:    "¥8,800.00",
+              submitted: "Apr 3, 2026",
+              status:    "Pending Approval",
+              statusState: "Warning",
+              aiScore:   71
+            },
+            {
+              id:        "PR-2026-0042",
+              title:     "Software License Renewal - Adobe CC",
+              category:  "Software",
+              amount:    "¥24,000.00",
+              submitted: "Apr 1, 2026",
+              status:    "Submitted",
+              statusState: "None",
+              aiScore:   95
+            },
+            {
+              id:        "PR-2026-0039",
+              title:     "Conference Room AV Equipment",
+              category:  "IT Hardware",
+              amount:    "¥36,000.00",
+              submitted: "Mar 28, 2026",
+              status:    "Rejected",
+              statusState: "Error",
+              aiScore:   54
+            },
+            {
+              id:        "PR-2026-0037",
+              title:     "Training Materials - Q2 Program",
+              category:  "Training",
+              amount:    "¥5,600.00",
+              submitted: "—",
+              status:    "Draft",
+              statusState: "None",
+              aiScore:   null
+            }
+          ]
+        });
+
+        // ─── AI Suggestion data ──────────────────────────────────────────────────
+        var AI_SUGGESTION = {
+          title:     "High-Performance Laptops for Backend Dev Team",
+          category:  "IT Hardware",
+          quantity:  "5",
+          unitPrice: "¥12,500",
+          total:     "¥62,500.00",
+          supplier:  "Dell Technologies China",
+          submitted: "Apr 7, 2026",
+          status:    "Draft",
+          statusState: "None",
+          aiScore:   88,
+          specs:     "CPU: Intel Core i7-13th Gen | RAM: 32GB DDR5 | Storage: 512GB NVMe SSD | OS: Windows 11 Pro",
+          justification: "Team expansion of 5 backend developers. Expected productivity improvement: ~30%."
+        };
+
+        // ─── State Model ─────────────────────────────────────────────────────────
+        var oStateModel = new JSONModel({
+          jobRunning:         false,
+          progressVisible:    false,
+          progressText:       "",
+          resultPanel:        "empty",
+          toolButtonsEnabled: true
+        });
+
+        // ─── Chat messages ───────────────────────────────────────────────────────
+        var oChatMessages = new JSONModel({
+          items: [{
+            sender:     "assistant",
+            senderName: "AI Assistant",
+            text:       "Hello! I can help you create a purchase request.\n\n" +
+                        "Type your need in the input box below (e.g. \u201c5 laptops for dev team, budget \u00a512K each\u201d) and press Send. " +
+                        "I will generate a complete purchase request for you to review and confirm.",
+            timestamp: _fmtTime(new Date())
+          }]
+        });
+
+        var oChatList, oChatScroll;
+
+        function _addMsg(sSender, sSenderName, sText) {
+          var a = oChatMessages.getProperty("/items");
+          a.push({ sender: sSender, senderName: sSenderName, text: sText, timestamp: _fmtTime(new Date()) });
+          oChatMessages.setProperty("/items", a);
+          setTimeout(function () {
+            var oInner = document.querySelector(".prChatScroll .sapMScrollContScroll");
+            if (oInner) { oInner.scrollTop = oInner.scrollHeight; }
+          }, 150);
+        }
+
+        // ─── Async simulation ────────────────────────────────────────────────────
+        function _runAsyncJob(aSteps, fnComplete) {
+          oStateModel.setProperty("/progressVisible",    true);
+          oStateModel.setProperty("/toolButtonsEnabled", false);
+          oStateModel.setProperty("/jobRunning",         true);
+          var i = 0;
+          function _next() {
+            if (i >= aSteps.length) { fnComplete(); return; }
+            oStateModel.setProperty("/progressText", aSteps[i]);
+            i++;
+            setTimeout(_next, 900);
+          }
+          _next();
+        }
+
+        function _finishJob() {
+          oStateModel.setProperty("/progressVisible",    false);
+          oStateModel.setProperty("/progressText",       "");
+          oStateModel.setProperty("/toolButtonsEnabled", true);
+          oStateModel.setProperty("/jobRunning",         false);
+        }
+
+        // ─── Master data (categories / suppliers / cost centers) ────────────────
+        var CATEGORIES = [
+          { key: "IT-HW",    text: "IT Hardware – Computing Devices" },
+          { key: "IT-SW",    text: "Software Licenses – SaaS / Perpetual" },
+          { key: "IT-INF",   text: "IT Infrastructure – Server & Networking" },
+          { key: "OFF-SUP",  text: "Office Supplies – Printing & Consumables" },
+          { key: "OFF-FURN", text: "Office Furniture – Ergonomic Equipment" },
+          { key: "MKT",      text: "Marketing – Campaigns & Materials" },
+          { key: "TRAIN",    text: "Training & Development" },
+          { key: "TRAVEL",   text: "Business Travel & Accommodation" },
+          { key: "CONSULT",  text: "Professional Services & Consulting" },
+          { key: "OTHER",    text: "Other" }
+        ];
+
+        var SUPPLIERS = [
+          { key: "DELL",    text: "Dell Technologies China",        status: "✅ Approved" },
+          { key: "LENOVO",  text: "Lenovo (China)",                 status: "✅ Approved" },
+          { key: "APPLE",   text: "Apple China",                    status: "✅ Approved" },
+          { key: "ADOBE",   text: "Adobe Systems (authorized)",     status: "✅ Approved" },
+          { key: "MSFT",    text: "Microsoft China",                status: "✅ Approved" },
+          { key: "HWCLOUD", text: "Huawei Cloud",                   status: "✅ Approved" },
+          { key: "OFFICEDP",text: "Office Depot China",             status: "✅ Approved" },
+          { key: "ERGOPRO", text: "ErgoPro Direct",                 status: "⚠ Not Approved" },
+          { key: "OTHER",   text: "Other (specify in specs)",       status: "⚠ Requires approval" }
+        ];
+
+        var COST_CENTERS = [
+          { key: "CC-IT-003",     text: "CC-IT-003 · IT Operations"         },
+          { key: "CC-IT-INF-001", text: "CC-IT-INF-001 · Infrastructure"    },
+          { key: "CC-MKT-001",    text: "CC-MKT-001 · Marketing"            },
+          { key: "CC-OPS-001",    text: "CC-OPS-001 · Operations"           },
+          { key: "CC-HR-001",     text: "CC-HR-001 · Human Resources"       },
+          { key: "CC-FIN-001",    text: "CC-FIN-001 · Finance"              },
+          { key: "CC-SALES-001",  text: "CC-SALES-001 · Sales"              }
+        ];
+
+        // ─── New Request Form Dialog ─────────────────────────────────────────────
+        var oFormModel = new JSONModel({
+          title:        "",
+          categoryKey:  "",
+          supplierKey:  "",
+          costCenterKey:"",
+          quantity:     1,
+          unitPrice:    "",
+          totalAmount:  "—",
+          specs:        "",
+          justification:"",
+          requiredByDate: "",
+          unit:         "units"
+        });
+
+        function _recalcTotal() {
+          var qty = oFormModel.getProperty("/quantity") || 0;
+          var price = parseFloat(oFormModel.getProperty("/unitPrice")) || 0;
+          if (qty > 0 && price > 0) {
+            var total = qty * price;
+            oFormModel.setProperty("/totalAmount", "¥" + total.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+          } else {
+            oFormModel.setProperty("/totalAmount", "—");
+          }
+        }
+
+        function _buildSelectItems(aData) {
+          var aItems = [new Item({ key: "", text: "— Select —" })];
+          aData.forEach(function(d) {
+            aItems.push(new Item({ key: d.key, text: d.text }));
+          });
+          return aItems;
+        }
+
+        // Category Select
+        var oCategorySelect = new Select({
+          width: "100%",
+          items: _buildSelectItems(CATEGORIES),
+          selectedKey: "{form>/categoryKey}",
+          change: function(oEvent) {
+            oFormModel.setProperty("/categoryKey", oEvent.getParameter("selectedItem").getKey());
+          }
+        });
+
+        // Supplier Select with status hint
+        var oSupplierStatusStrip = new MessageStrip({
+          text: "",
+          type: "Success",
+          showIcon: true,
+          showCloseButton: false,
+          visible: false
+        }).addStyleClass("nrSupplierStrip");
+
+        var oSupplierSelect = new Select({
+          width: "100%",
+          selectedKey: "{form>/supplierKey}",
+          change: function(oEvent) {
+            var sKey = oEvent.getParameter("selectedItem").getKey();
+            oFormModel.setProperty("/supplierKey", sKey);
+            var found = SUPPLIERS.find(function(s){ return s.key === sKey; });
+            if (found && sKey) {
+              var isApproved = found.status.indexOf("Approved") > -1 && found.status.indexOf("Not") < 0;
+              oSupplierStatusStrip.setText(found.status + " · " + found.text);
+              oSupplierStatusStrip.setType(isApproved ? "Success" : "Warning");
+              oSupplierStatusStrip.setVisible(true);
+            } else {
+              oSupplierStatusStrip.setVisible(false);
+            }
+          }
+        });
+        SUPPLIERS.forEach(function(s) {
+          oSupplierSelect.addItem(new Item({ key: s.key, text: s.text }));
+        });
+        oSupplierSelect.insertItem(new Item({ key: "", text: "— Select —" }), 0);
+
+        // Cost Center Select
+        var oCostCenterSelect = new Select({
+          width: "100%",
+          items: _buildSelectItems(COST_CENTERS),
+          selectedKey: "{form>/costCenterKey}",
+          change: function(oEvent) {
+            oFormModel.setProperty("/costCenterKey", oEvent.getParameter("selectedItem").getKey());
+          }
+        });
+
+        // Quantity + Unit Price → auto total
+        var oQuantityInput = new StepInput({
+          value: "{form>/quantity}",
+          min: 1, max: 9999, step: 1, largerStep: 10,
+          width: "8rem",
+          change: function() { _recalcTotal(); }
+        });
+
+        var oUnitInput = new Input({
+          value: "{form>/unit}",
+          width: "6rem",
+          placeholder: "e.g. units"
+        });
+
+        var oUnitPriceInput = new Input({
+          value: "{form>/unitPrice}",
+          width: "12rem",
+          placeholder: "e.g. 12500",
+          description: "CNY",
+          liveChange: function() { _recalcTotal(); }
+        });
+
+        var oTotalText = new Text({ text: "{form>/totalAmount}" }).addStyleClass("nrTotalAmount");
+
+        var oTitleInput = new Input({
+          value: "{form>/title}",
+          width: "100%",
+          maxLength: 200,
+          placeholder: "Brief, descriptive title for this request"
+        });
+
+        var oSpecsArea = new TextArea({
+          value: "{form>/specs}",
+          width: "100%",
+          rows: 3,
+          maxLength: 2000,
+          placeholder: "Technical specifications, model numbers, configuration details…"
+        });
+
+        var oJustArea = new TextArea({
+          value: "{form>/justification}",
+          width: "100%",
+          rows: 3,
+          maxLength: 2000,
+          placeholder: "Business reason for this purchase and expected outcome…"
+        });
+
+        var oDatePicker = new DatePicker({
+          value: "{form>/requiredByDate}",
+          valueFormat: "yyyy-MM-dd",
+          displayFormat: "MMM d, yyyy",
+          width: "12rem",
+          placeholder: "Select date"
+        });
+
+        // Supplier status hint strip (rendered via HTML trick inside VBox)
+        var oSupplierHint = new HBox({
+          renderType: "Bare",
+          items: [oSupplierSelect]
+        });
+
+        // Validation
+        function _validateForm() {
+          var errors = [];
+          if (!oFormModel.getProperty("/title").trim())         errors.push("Title is required.");
+          if (!oFormModel.getProperty("/categoryKey"))          errors.push("Category is required.");
+          if (!oFormModel.getProperty("/supplierKey"))          errors.push("Supplier is required.");
+          if (!oFormModel.getProperty("/costCenterKey"))        errors.push("Cost Center is required.");
+          var price = parseFloat(oFormModel.getProperty("/unitPrice"));
+          if (!price || price <= 0)                             errors.push("Unit price must be a positive number.");
+          if (!oFormModel.getProperty("/justification").trim()) errors.push("Business justification is required.");
+          return errors;
+        }
+
+        function _submitNewRequest() {
+          var errors = _validateForm();
+          if (errors.length > 0) {
+            MessageBox.error(errors.join("\n"), { title: "Please fix the following:" });
+            return;
+          }
+
+          // Build new row
+          var aReqs = oPRModel.getProperty("/requests");
+          var lastId = aReqs[0] ? parseInt(aReqs[0].id.split("-")[3]) : 45;
+          var newId = "PR-2026-" + String(lastId + 1).padStart(4, "0");
+
+          var sCatKey = oFormModel.getProperty("/categoryKey");
+          var sCatText = (CATEGORIES.find(function(c){ return c.key === sCatKey; }) || {}).text || sCatKey;
+
+          aReqs.unshift({
+            id:          newId,
+            title:       oFormModel.getProperty("/title"),
+            category:    sCatText.split("–")[0].trim(),
+            amount:      oFormModel.getProperty("/totalAmount"),
+            submitted:   "—",
+            status:      "Draft",
+            statusState: "None",
+            aiScore:     null
+          });
+          oPRModel.setProperty("/requests", aReqs);
+          oNewRequestDialog.close();
+          MessageToast.show("Request \u201c" + oFormModel.getProperty("/title") + "\u201d saved as Draft.");
+        }
+
+        // Form layout
+        var oNewRequestForm = new VBox({
+          renderType: "Bare",
+          items: [
+            // Section: Basic Info
+            new Text({ text: "BASIC INFORMATION" }).addStyleClass("nrSectionTitle"),
+
+            new HBox({ renderType: "Bare", items: [
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Request Title", required: true }).addStyleClass("nrLabel"),
+                oTitleInput
+              ]}).addStyleClass("nrFieldFull")
+            ]}).addStyleClass("nrRow"),
+
+            new HBox({ renderType: "Bare", items: [
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Category", required: true }).addStyleClass("nrLabel"),
+                oCategorySelect
+              ]}).addStyleClass("nrFieldHalf"),
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Cost Center", required: true }).addStyleClass("nrLabel"),
+                oCostCenterSelect
+              ]}).addStyleClass("nrFieldHalf")
+            ]}).addStyleClass("nrRow"),
+
+            // Section: Quantity & Price
+            new Text({ text: "QUANTITY & PRICING" }).addStyleClass("nrSectionTitle"),
+
+            new HBox({ renderType: "Bare", alignItems: "End", items: [
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Quantity", required: true }).addStyleClass("nrLabel"),
+                oQuantityInput
+              ]}).addStyleClass("nrFieldAuto"),
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Unit" }).addStyleClass("nrLabel"),
+                oUnitInput
+              ]}).addStyleClass("nrFieldAuto"),
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Unit Price (CNY)", required: true }).addStyleClass("nrLabel"),
+                oUnitPriceInput
+              ]}).addStyleClass("nrFieldAuto"),
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Total Amount" }).addStyleClass("nrLabel"),
+                oTotalText
+              ]}).addStyleClass("nrFieldAuto")
+            ]}).addStyleClass("nrRow"),
+
+            // Section: Supplier
+            new Text({ text: "SUPPLIER" }).addStyleClass("nrSectionTitle"),
+
+            new HBox({ renderType: "Bare", items: [
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Preferred Supplier", required: true }).addStyleClass("nrLabel"),
+                oSupplierSelect,
+                oSupplierStatusStrip
+              ]}).addStyleClass("nrFieldHalf"),
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Required By Date" }).addStyleClass("nrLabel"),
+                oDatePicker
+              ]}).addStyleClass("nrFieldHalf")
+            ]}).addStyleClass("nrRow"),
+
+            // Section: Details
+            new Text({ text: "TECHNICAL SPECIFICATIONS" }).addStyleClass("nrSectionTitle"),
+
+            new HBox({ renderType: "Bare", items: [
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Specifications" }).addStyleClass("nrLabel"),
+                oSpecsArea
+              ]}).addStyleClass("nrFieldFull")
+            ]}).addStyleClass("nrRow"),
+
+            new HBox({ renderType: "Bare", items: [
+              new VBox({ renderType: "Bare", items: [
+                new Label({ text: "Business Justification", required: true }).addStyleClass("nrLabel"),
+                oJustArea
+              ]}).addStyleClass("nrFieldFull")
+            ]}).addStyleClass("nrRow")
+          ]
+        }).addStyleClass("nrForm");
+
+        var oNewRequestDialog = new Dialog({
+          title:        "New Purchase Request",
+          contentWidth: "680px",
+          resizable:    true,
+          draggable:    true,
+          content: [
+            new ScrollContainer({
+              vertical: true, horizontal: false,
+              height: "70vh",
+              content: [oNewRequestForm]
+            })
+          ],
+          beginButton: new Button({
+            text:  "Submit as Draft",
+            type:  "Emphasized",
+            icon:  "sap-icon://save",
+            press: function() { _submitNewRequest(); }
+          }),
+          endButton: new Button({
+            text:  "Cancel",
+            press: function() { oNewRequestDialog.close(); }
+          })
+        }).addStyleClass("nrDialog");
+
+        oNewRequestDialog.setModel(oFormModel, "form");
+
+        function _openNewRequestDialog() {
+          // Reset form
+          oFormModel.setData({
+            title:        "",
+            categoryKey:  "",
+            supplierKey:  "",
+            costCenterKey:"",
+            quantity:     1,
+            unitPrice:    "",
+            totalAmount:  "—",
+            specs:        "",
+            justification:"",
+            requiredByDate: "",
+            unit:         "units"
+          });
+          oCategorySelect.setSelectedKey("");
+          oSupplierSelect.setSelectedKey("");
+          oSupplierStatusStrip.setVisible(false);
+          oCostCenterSelect.setSelectedKey("");
+          oNewRequestDialog.open();
+        }
+
+        // ─── Generate Suggestion Handler ─────────────────────────────────────────
+        function _runGenerateSuggestion(sInput) {
+          var sDesc = sInput || "5 high-performance laptops for backend development team";
+          _addMsg("user", "You", sDesc);
+          _addMsg("assistant", "AI Assistant", "Analyzing your request\u2026 generating a purchase suggestion.");
+
+          _runAsyncJob([
+            "Understanding your requirements\u2026 (1/4)",
+            "Matching product categories and suppliers\u2026 (2/4)",
+            "Checking pricing references and compliance\u2026 (3/4)",
+            "Preparing purchase request suggestion\u2026 (4/4)"
+          ], function () {
+            _finishJob();
+            oProposalScroll.destroyContent();
+            oProposalScroll.addContent(_buildSuggestionPanel());
+            oStateModel.setProperty("/resultPanel", "proposals");
+            _addMsg("assistant", "AI Assistant",
+              "I\u2019ve generated a purchase request suggestion based on your description.\n\n" +
+              "Please review the details in the right panel. You can click \u201cConfirm & Add to List\u201d to add it to your purchase requests.");
+          });
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //  RIGHT PANEL — Purchase Request Suggestion
+        // ════════════════════════════════════════════════════════════════════════
+        function _buildFieldRow(sLabel, sValue, bHighlight) {
+          return new HBox({
+            renderType: "Bare",
+            alignItems: "Start",
+            items: [
+              new Text({ text: sLabel }).addStyleClass("sgLabel"),
+              new Text({ text: sValue, wrapping: true })
+                .addStyleClass(bHighlight ? "sgValueHighlight" : "sgValue")
+            ]
+          }).addStyleClass("sgRow");
+        }
+
+        function _buildSuggestionPanel() {
+          var s = AI_SUGGESTION;
+
+          // Compliance tags
+          var oComplianceBox = new HBox({
+            renderType: "Bare",
+            wrap: "Wrap",
+            items: [
+              new Text({ text: "\u2705 Price in range" }).addStyleClass("sgTag sgTagGreen"),
+              new Text({ text: "\u2705 Approved supplier" }).addStyleClass("sgTag sgTagGreen"),
+              new Text({ text: "\u26A0 Q2 budget 78% used" }).addStyleClass("sgTag sgTagOrange"),
+              new Text({ text: "\u2728 AI Score: 88" }).addStyleClass("sgTag sgTagBlue")
+            ]
+          }).addStyleClass("sgTagRow");
+
+          var oCard = new VBox({
+            renderType: "Bare",
+            items: [
+              new Title({
+                text: "\u2728  AI Purchase Request Suggestion",
+                level: "H5",
+                wrapping: true
+              }).addStyleClass("sgTitle"),
+              new Text({
+                text: "Review the fields below. Click \u201cConfirm & Add to List\u201d to create this request."
+              }).addStyleClass("sgSubtitle"),
+              oComplianceBox,
+
+              new Title({ text: "Request Details", level: "H6" }).addStyleClass("sgSectionTitle"),
+              _buildFieldRow("Title",     s.title,     true),
+              _buildFieldRow("Category",  s.category,  false),
+              _buildFieldRow("Quantity",  s.quantity + " units", false),
+              _buildFieldRow("Unit Price", s.unitPrice, false),
+              _buildFieldRow("Total",     s.total,     true),
+              _buildFieldRow("Supplier",  s.supplier,  false),
+
+              new Title({ text: "Specifications", level: "H6" }).addStyleClass("sgSectionTitle"),
+              _buildFieldRow("Specs",     s.specs, false),
+              _buildFieldRow("Justification", s.justification, false),
+
+              new Button({
+                text:  "\u2713  Confirm & Add to List",
+                type:  "Emphasized",
+                width: "100%",
+                press: function () {
+                  _confirmSuggestion();
+                }
+              }).addStyleClass("sgConfirmBtn")
+            ]
+          }).addStyleClass("sgCard");
+
+          return new VBox({
+            renderType: "Bare",
+            items: [oCard]
+          }).addStyleClass("sgDocument");
+        }
+
+        // ─── Confirm suggestion → add row ────────────────────────────────────────
+        function _confirmSuggestion() {
+          var aReqs = oPRModel.getProperty("/requests");
+          var newId = "PR-2026-00" + (parseInt(aReqs[0].id.split("-")[3]) + 1);
+          aReqs.unshift({
+            id:          newId,
+            title:       AI_SUGGESTION.title,
+            category:    AI_SUGGESTION.category,
+            amount:      AI_SUGGESTION.total,
+            submitted:   AI_SUGGESTION.submitted,
+            status:      "Draft",
+            statusState: "None",
+            aiScore:     AI_SUGGESTION.aiScore
+          });
+          oPRModel.setProperty("/requests", aReqs);
+          oAiDialog.close();
+          MessageToast.show("Purchase request \u201c" + AI_SUGGESTION.title + "\u201d added to your list.");
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        //  CHAT LIST
+        // ════════════════════════════════════════════════════════════════════════
+        oChatList = new List({
+          showSeparators:   "None",
+          backgroundDesign: "Transparent"
+        }).addStyleClass("prChatList");
+
+        oChatList.bindAggregation("items", {
+          path: "chat>/items",
+          factory: function (sId, oCtx) {
+            var bAI = oCtx.getProperty("sender") === "assistant";
+            var oItem = new FeedListItem({
+              sender:    oCtx.getProperty("senderName"),
+              text:      oCtx.getProperty("text"),
+              timestamp: oCtx.getProperty("timestamp"),
+              icon:      bAI ? "sap-icon://ai" : "sap-icon://person-placeholder",
+              showIcon:  true,
+              convertLinksToAnchorTags: "All"
+            });
+            oItem.addStyleClass(bAI ? "aiAssistantBubble" : "aiUserBubble");
+            return oItem;
+          }
+        });
+
+        // ─── Progress strip ──────────────────────────────────────────────────────
+        var oProgressStrip = new MessageStrip({
+          text:            "{state>/progressText}",
+          type:            "Information",
+          showIcon:        true,
+          showCloseButton: false,
+          visible:         "{state>/progressVisible}"
+        }).addStyleClass("sapUiSmallMarginBeginEnd sapUiTinyMarginBottom");
+
+        // ─── Feed input — always shown, disabled only while job runs ─────────────
+        var oFeedInput = new FeedInput({
+          placeholder: "Describe your purchase need\u2026 (e.g. 5 laptops for dev team, budget \u00a512K each)",
+          enabled:     "{state>/toolButtonsEnabled}",
+          post: function (oEvent) {
+            var sText = oEvent.getParameter("value");
+            if (!sText || !sText.trim()) { return; }
+            _runGenerateSuggestion(sText);
+          }
+        }).addStyleClass("aiFeedInput");
+
+        oChatScroll = new ScrollContainer({
+          vertical: true, horizontal: false, height: "100%",
+          content: [oChatList]
+        }).addStyleClass("prChatScroll");
+
+        // ─── Dialog sub-bar ──────────────────────────────────────────────────────
+        var oDialogSubBar = new Bar({
+          contentLeft: [
+            new HBox({
+              renderType: "Bare", alignItems: "Center",
+              items: [
+                new Label({ text: "Model:"  }).addStyleClass("aiMetaLabel"),
+                new Text({  text: "Claude Sonnet 4" }).addStyleClass("aiMetaValue sapUiSmallMarginEnd"),
+                new Text({  text: "|" }).addStyleClass("aiMetaSep sapUiSmallMarginEnd"),
+                new Label({ text: "Mode:" }).addStyleClass("aiMetaLabel"),
+                new Text({  text: "Purchase Request Assistant" }).addStyleClass("aiMetaValue")
+              ]
+            })
+          ],
+          contentRight: [
+            new Button({ icon: "sap-icon://action-settings", type: "Ghost", tooltip: "Configuration" })
+          ]
+        }).addStyleClass("aiDialogSubBar");
+
+        // ─── Left panel ──────────────────────────────────────────────────────────
+        var oLeftPanel = new VBox({
+          renderType: "Bare",
+          items: [oDialogSubBar, oProgressStrip, oChatScroll, oFeedInput]
+        }).addStyleClass("aiLeftPanel");
+
+        // ─── Right panel ─────────────────────────────────────────────────────────
+        var oEmptyState = new VBox({
+          renderType: "Bare",
+          items: [
+            new Icon({ src: "sap-icon://ai", size: "3rem", color: "#b0b8c1" }),
+            new Text({
+              text: "Your AI purchase request suggestion will appear here",
+              wrapping: true, textAlign: "Center"
+            }).addStyleClass("sapUiSmallMarginTop aiEmptyText")
+          ]
+        }).addStyleClass("aiEmptyState");
+        oEmptyState.bindProperty("visible", {
+          path: "state>/resultPanel",
+          formatter: function (s) { return s === "empty"; }
+        });
+
+        var oProposalScroll = new ScrollContainer({
+          vertical: true, horizontal: false, height: "100%", content: []
+        }).addStyleClass("wdScrollContainer");
+
+        var oProposalResult = new VBox({
+          renderType: "Bare", height: "100%", items: [oProposalScroll]
+        }).addStyleClass("aiTextResult");
+        oProposalResult.bindProperty("visible", {
+          path: "state>/resultPanel",
+          formatter: function (s) { return s === "proposals"; }
+        });
+
+        var oRightPanel = new VBox({
+          renderType: "Bare",
+          items: [oEmptyState, oProposalResult]
+        }).addStyleClass("aiRightPanel");
+
+        // ─── AI Dialog ───────────────────────────────────────────────────────────
+        var oDialogLayout = new HBox({
+          renderType: "Bare",
+          items: [oLeftPanel, oRightPanel]
+        }).addStyleClass("aiDialogLayout");
+
+        var oAiDialog = new Dialog({
+          title:        "\u2728  AI-Assisted Purchase Request",
+          contentWidth: "90vw",
+          resizable:    true,
+          draggable:    true,
+          content:      [oDialogLayout],
+          buttons: [
+            new Button({ text: "Close", press: function () { oAiDialog.close(); } })
+          ]
+        }).addStyleClass("aiConversationDialog");
+
+        oAiDialog.setModel(oStateModel,   "state");
+        oAiDialog.setModel(oChatMessages, "chat");
+
+        // ════════════════════════════════════════════════════════════════════════
+        //  PURCHASE REQUESTS PAGE
+        // ════════════════════════════════════════════════════════════════════════
+
+        // KPI header
+        var oKpiBar = new HBox({
+          renderType: "Bare",
+          items: [
+            _buildKpi("12", "Total Requests"),
+            _buildKpi("3",  "Pending Review"),
+            _buildKpi("¥84,500", "Total Amount (YTD)"),
+            _buildKpi("87%", "Avg. AI Quality Score")
+          ]
+        }).addStyleClass("kpiBar");
+
+        function _buildKpi(sValue, sLabel) {
+          return new VBox({
+            renderType: "Bare",
+            items: [
+              new Title({ text: sValue, level: "H2" }).addStyleClass("kpiValue"),
+              new Text({ text: sLabel }).addStyleClass("kpiLabel")
+            ]
+          }).addStyleClass("kpiItem");
+        }
+
+        // Table
+        var oPRTable = new Table({
+          growing:         true,
+          growingThreshold: 10,
+          sticky: ["ColumnHeaders"],
+          columns: [
+            new Column({ header: new Label({ text: "Request ID" }),  width: "11rem" }),
+            new Column({ header: new Label({ text: "Title" }) }),
+            new Column({ header: new Label({ text: "Category" }),    width: "10rem", minScreenWidth: "Tablet", demandPopin: true }),
+            new Column({ header: new Label({ text: "Amount (CNY)" }), width: "9rem",  minScreenWidth: "Tablet", demandPopin: true, hAlign: "End" }),
+            new Column({ header: new Label({ text: "Submitted" }),   width: "9rem",  minScreenWidth: "Desktop", demandPopin: true }),
+            new Column({ header: new Label({ text: "Status" }),      width: "10rem" }),
+            new Column({ header: new Label({ text: "AI Quality" }),  width: "7rem",  minScreenWidth: "Tablet", demandPopin: true, hAlign: "Center" })
+          ]
+        }).addStyleClass("prTable");
+
+        oPRTable.bindAggregation("items", {
+          path: "pr>/requests",
+          factory: function (sId, oCtx) {
+            var nScore = oCtx.getProperty("aiScore");
+            var sScoreText = nScore ? ("\u2728 " + nScore) : "—";
+            var sScoreClass = nScore >= 85 ? "aiScoreHigh" : (nScore >= 70 ? "aiScoreMid" : "aiScoreLow");
+
+            return new ColumnListItem({
+              type: "Navigation",
+              press: function () {
+                MessageToast.show("Opening " + oCtx.getProperty("id") + "\u2026");
+              },
+              cells: [
+                new Link({
+                  text:  oCtx.getProperty("id"),
+                  press: function () { MessageToast.show("Opening " + oCtx.getProperty("id")); }
+                }),
+                new VBox({
+                  renderType: "Bare",
+                  items: [
+                    new Text({ text: oCtx.getProperty("title") }).addStyleClass("prTitleText"),
+                    new Text({ text: oCtx.getProperty("category") }).addStyleClass("prCategoryText")
+                  ]
+                }),
+                new Text({ text: oCtx.getProperty("category") }),
+                new Text({ text: oCtx.getProperty("amount") }).addStyleClass("amountText"),
+                new Text({ text: oCtx.getProperty("submitted") }),
+                new ObjectStatus({
+                  text:  oCtx.getProperty("status"),
+                  state: oCtx.getProperty("statusState")
+                }),
+                new Text({ text: sScoreText }).addStyleClass("aiScorePill " + sScoreClass)
+              ]
+            });
+          }
+        });
+
+        // Toolbar
+        var oTableBar = new OverflowToolbar({
+          content: [
+            new Button({
+              text: "+ New Request",
+              type: "Emphasized",
+              press: function () { _openNewRequestDialog(); }
+            }),
+            new Button({
+              text:  "\u2728 AI-Assisted Request",
+              type:  "Default",
+              icon:  "sap-icon://ai",
+              press: function () {
+                // Reset dialog state for fresh session
+                oStateModel.setProperty("/resultPanel",        "empty");
+                oStateModel.setProperty("/toolButtonsEnabled", true);
+                oStateModel.setProperty("/progressVisible",    false);
+                oChatMessages.setProperty("/items", [{
+                  sender: "assistant", senderName: "AI Assistant",
+                  text: "Hello! I can help you create a purchase request.\n\n" +
+                        "Type your need in the input box below (e.g. \u201c5 laptops for dev team, budget \u00a512K each\u201d) and press Send. " +
+                        "I will generate a complete purchase request for you to review and confirm.",
+                  timestamp: _fmtTime(new Date())
+                }]);
+                oProposalScroll.destroyContent();
+                oAiDialog.open();
+              }
+            }),
+            new ToolbarSpacer(),
+            new SearchField({
+              placeholder: "Search requests\u2026",
+              width: "16rem",
+              search: function (oEvent) {
+                MessageToast.show("Search: " + oEvent.getParameter("query"));
+              }
+            })
+          ]
+        });
+
+        var oPage = new Page({
+          customHeader: new Bar({
+            contentLeft: [
+              new Button({
+                icon:    "sap-icon://nav-back",
+                type:    "Default",
+                tooltip: "Back",
+                press:   function () { window.location.href = "index.html"; }
+              })
+            ],
+            contentMiddle: [new Title({ text: "Smart Purchase Assistant" })]
+          }),
+          subHeader: new Bar({
+            contentLeft: [new Title({ text: "My Purchase Requests", level: "H3" }).addStyleClass("pageTitle")]
+          }),
+          content: [oKpiBar, oTableBar, oPRTable]
+        });
+
+        // ─── Root app ────────────────────────────────────────────────────────────
+        var oApp = new App({ pages: [oPage] });
+        oApp.setModel(oPRModel,      "pr");
+        oApp.setModel(oStateModel,   "state");
+        oApp.setModel(oChatMessages, "chat");
+
+        oApp.addDependent(oNewRequestDialog);
+        oApp.placeAt("content");
+
+      }); // end sap.ui.require
+    }); // end attachInit
+  </script>
+
+  <style>
+    html, body, #content { width:100%; height:100%; margin:0; padding:0; overflow:hidden; }
+
+    /* ── KPI bar ────────────────────────────────────────────────────────────── */
+    .kpiBar {
+      padding: 1rem 1.5rem 0.75rem;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .kpiItem { min-width: 100px; }
+    .kpiValue.sapMTitle { font-size: 1.75rem !important; font-weight: 300 !important; color: var(--sapInformativeColor, #0a6ed1) !important; }
+    .kpiLabel.sapMText  { font-size: 0.75rem; color: var(--sapContent_LabelColor, #6a6d70); margin-top: 0.125rem; }
+
+    /* ── Table tweaks ───────────────────────────────────────────────────────── */
+    .prTable { margin-top: 0; }
+    .prTitleText.sapMText   { font-weight: 500; font-size: 0.875rem; }
+    .prCategoryText.sapMText { font-size: 0.75rem; color: var(--sapContent_LabelColor, #6a6d70); }
+    .amountText.sapMText    { font-variant-numeric: tabular-nums; }
+
+    .aiScorePill.sapMText   { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 0.75rem; text-align: center; }
+    .aiScoreHigh.sapMText   { background: #ebf5e0; color: #1a7a1a; }
+    .aiScoreMid.sapMText    { background: #fff4e0; color: #c75300; }
+    .aiScoreLow.sapMText    { background: #ffeaea; color: #c0392b; }
+
+    /* ── Dialog layout ──────────────────────────────────────────────────────── */
+    .aiConversationDialog .sapMDialogSection { padding: 0 !important; overflow: hidden !important; }
+    .aiConversationDialog .sapMDialogScroll,
+    .aiConversationDialog .sapMDialogScrollCont { height: 100% !important; overflow: hidden !important; padding: 0 !important; }
+    .aiConversationDialog.sapMDialog { height: 85vh !important; }
+
+    .aiDialogLayout { width: 100%; height: 100%; display: flex; }
+
+    /* ── Left panel ─────────────────────────────────────────────────────────── */
+    .aiLeftPanel {
+      flex: 1 1 54%; min-width: 0;
+      border-right: 1px solid var(--sapGroup_TitleBorderColor, #e4e4e4);
+      display: flex !important; flex-direction: column !important;
+      align-self: stretch; overflow: hidden;
+    }
+    .aiDialogSubBar {
+      background: var(--sapPageHeader_Background, #fff) !important;
+      border-bottom: 1px solid var(--sapGroup_TitleBorderColor, #e4e4e4) !important;
+      flex-shrink: 0; min-height: 2.75rem !important;
+    }
+    .aiMetaLabel { font-weight: 600; margin-right: 0.25rem; white-space: nowrap; }
+    .aiMetaValue { color: var(--sapContent_LabelColor, #6a6d70); white-space: nowrap; margin-right: 0.5rem; }
+    .aiMetaSep   { color: var(--sapContent_LabelColor, #6a6d70); margin-right: 0.5rem; }
+    .prChatScroll { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+    .prChatScroll > .sapMScrollContScroll { height: 100% !important; }
+    .prChatList { padding: 0.5rem; }
+
+    .aiAssistantBubble .sapMFeedListItemText {
+      background: var(--sapNeutralBackground, #f0f4f9);
+      border-radius: 0 0.75rem 0.75rem 0.75rem;
+      padding: 0.5rem 0.875rem;
+    }
+    .aiUserBubble .sapMFeedListItemText {
+      background: var(--sapButton_Lite_Hover_Background, #e8f3ff);
+      border-radius: 0.75rem 0 0.75rem 0.75rem;
+      padding: 0.5rem 0.875rem;
+    }
+    .aiAssistantBubble .sapMFeedListItemTextString,
+    .aiUserBubble .sapMFeedListItemTextString { line-height: 1.6; }
+    .aiFeedInput { flex-shrink: 0; }
+    .aiFeedInput.sapMFeedInput { border-top: 1px solid var(--sapGroup_TitleBorderColor, #e4e4e4) !important; }
+
+    /* ── Right panel ────────────────────────────────────────────────────────── */
+    .aiRightPanel {
+      flex: 0 0 46%; max-width: 46%;
+      background: var(--sapBackgroundColor, #f5f6f8);
+      overflow: hidden; align-self: stretch;
+      display: flex !important; flex-direction: column !important;
+    }
+    .aiEmptyState {
+      flex: 1 1 auto; justify-content: center; align-items: center; padding: 2rem;
+    }
+    .aiEmptyText { color: var(--sapContent_LabelColor, #6a6d70); font-size: 0.875rem; text-align: center; margin-top: 0.75rem; }
+    .aiTextResult { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .wdScrollContainer { flex: 1 1 auto; min-height: 0; }
+    .wdScrollContainer > .sapMScrollContScroll { height: 100% !important; }
+
+    /* ── Suggestion card ────────────────────────────────────────────────────── */
+    .sgDocument { padding: 1rem 1rem 1.5rem; }
+    .sgCard {
+      background: #fff;
+      border: 1px solid var(--sapGroup_TitleBorderColor, #e4e4e4);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+    .sgTitle.sapMTitle {
+      font-size: 1rem !important;
+      font-weight: 700 !important;
+      color: var(--sapTextColor, #1d2d3e) !important;
+      margin-bottom: 0.25rem;
+    }
+    .sgSubtitle.sapMText {
+      font-size: 0.8125rem;
+      color: var(--sapContent_LabelColor, #6a6d70);
+      margin-bottom: 0.75rem;
+    }
+    .sgSectionTitle.sapMTitle {
+      font-size: 0.8125rem !important;
+      font-weight: 700 !important;
+      color: var(--sapContent_LabelColor, #6a6d70) !important;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.875rem !important;
+      margin-bottom: 0.375rem !important;
+      border-bottom: 1px solid var(--sapGroup_TitleBorderColor, #e5e5e5);
+      padding-bottom: 0.25rem;
+    }
+    .sgTagRow { gap: 0.375rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .sgTag.sapMText {
+      display: inline-block;
+      border-radius: 0.75rem;
+      padding: 0.125rem 0.625rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .sgTagGreen.sapMText  { background: #ebf5e0; color: #1a7a1a; }
+    .sgTagOrange.sapMText { background: #fff4e0; color: #c75300; }
+    .sgTagBlue.sapMText   { background: #e8f1fb; color: #0a6ed1; }
+
+    .sgRow  { margin-bottom: 0.375rem; gap: 0.5rem; }
+    .sgLabel.sapMText {
+      font-weight: 600; color: #6a6d70;
+      min-width: 80px; font-size: 0.8125rem; flex-shrink: 0;
+    }
+    .sgValue.sapMText {
+      font-size: 0.8125rem; color: var(--sapTextColor, #1d2d3e); flex: 1; line-height: 1.5;
+    }
+    .sgValueHighlight.sapMText {
+      font-size: 0.875rem; font-weight: 600;
+      color: var(--sapInformativeColor, #0a6ed1); flex: 1;
+    }
+    .sgConfirmBtn { margin-top: 1.25rem !important; }
+
+    /* ── Page title ─────────────────────────────────────────────────────────── */
+    .pageTitle.sapMTitle { font-size: 1rem !important; }
+
+    /* ── New Request Form Dialog ────────────────────────────────────────────── */
+    .nrDialog .sapMDialogHeader .sapMTitle { font-size: 1rem !important; }
+
+    .nrForm { padding: 1rem 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0; }
+
+    .nrSectionTitle.sapMText {
+      font-size: 0.6875rem !important;
+      font-weight: 700 !important;
+      color: var(--sapContent_LabelColor, #6a6d70) !important;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 1.25rem !important;
+      margin-bottom: 0.5rem !important;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--sapGroup_TitleBorderColor, #e5e5e5);
+    }
+    .nrForm > .nrSectionTitle:first-child { margin-top: 0 !important; }
+
+    .nrRow {
+      display: flex !important;
+      gap: 1rem;
+      margin-bottom: 0.625rem;
+      flex-wrap: wrap;
+    }
+    .nrFieldFull  { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; }
+    .nrFieldHalf  { flex: 1 1 calc(50% - 0.5rem); min-width: 160px; display: flex; flex-direction: column; }
+    .nrFieldAuto  { flex: 0 0 auto; display: flex; flex-direction: column; }
+
+    .nrLabel.sapMLabel {
+      font-size: 0.8125rem !important;
+      font-weight: 600 !important;
+      margin-bottom: 0.25rem !important;
+      color: var(--sapContent_LabelColor, #6a6d70) !important;
+    }
+
+    .nrTotalAmount.sapMText {
+      font-size: 1.125rem !important;
+      font-weight: 700 !important;
+      color: var(--sapInformativeColor, #0a6ed1) !important;
+      padding-top: 0.35rem;
+      min-width: 110px;
+    }
+
+    .nrSupplierHintRow { margin-top: 0.25rem; min-height: 1.25rem; }
+    .nrSupplierHint.sapMText {
+      font-size: 0.75rem !important;
+      font-weight: 500 !important;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+    .nrSupplierStrip { margin-top: 0.375rem; }
+
+    @media (max-width: 680px) {
+      .aiRightPanel { display: none !important; }
+      .aiLeftPanel  { flex: 1 1 100%; border-right: none; }
+    }
+  </style>
+</head>
+<body class="sapUiBody" id="content"></body>
+</html>
